@@ -4,6 +4,7 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 
+import math
 import memory
 import pose
 import commands
@@ -21,10 +22,11 @@ class Ready(Task):
 
 
 class Playing(StateMachine):
+
     class Stand(Node):
         def run(self):
             commands.stand()
-            if self.getTime() > 5.0:
+            if self.getTime() > 2.0:
                 memory.speech.say("playing stand complete")
                 self.finish()
 
@@ -39,9 +41,17 @@ class Playing(StateMachine):
                 memory.speech.say("turned off stiffness")
                 self.finish()
 
+    class TurnHead(Node):
+        def run(self):
+            commands.setHeadPan(math.pi/4, target_time=0.3, isChange=None)
+            if self.getTime() > 2.0:
+                memory.speech.say("panned head")
+                self.finish()
+
     def setup(self):
         stand = self.Stand()
         walk = self.Walk()
         sit = pose.Sit()
+        head_left = self.TurnHead()
         off = self.Off()
-        self.trans(stand, C, walk, T(5.0), sit, C, off)
+        self.trans(stand, C, walk, T(1.0), sit, C, head_left, C, off)

@@ -42,14 +42,21 @@ class Playing(StateMachine):
 
     class TurnHead(Node):
         def run(self):
-            commands.setHeadPan(8)
+            commands.setHeadPan(math.pi/4, target_time=0.3, isChange=None)
             if self.getTime() > 2.0:
                 memory.speech.say("panned head")
                 self.finish()
-            
+
+	class Stand(Node):
+		def run(self):
+			commands.stand()
+			self.finish()
+
     def setup(self):
         sit = pose.Sit()
-        off = self.Off()
         head_left = self.TurnHead()
-        
-        self.trans(sit, C, head_left, C, off, C)
+        stand = self.Stand()
+        off = self.Off()
+
+        self.trans(sit, C, head_left, C, stand, C, off)
+#         self.trans(sit, C, head_left, C, off)
