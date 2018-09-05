@@ -43,13 +43,19 @@ class Playing(StateMachine):
     class TurnHead(Node):
         def run(self):
             commands.setHeadPan(math.pi/4, target_time=0.3, isChange=None)
-            if self.getTime() > 2.0:
-                memory.speech.say("panned head")
-                self.finish()
+            self.finish()
 
-    class TurnBody(Node):
+    class TurnBodyLeftInPlace(Node):
         def run(self):
-            commands.setWalkVelocity(0.5, 0.0, 0.3)
+            commands.setWalkVelocity(0, 0, 0.3)
+
+    class TurnBodyRightInPlace(Node):
+        def run(self):
+            commands.setWalkVelocity(0, 0, -0.9)
+
+    class TurnBodyLeftWalking(Node):
+        def run(self):
+            commands.setWalkVelocity(0.5, 0, 0.5)
 
 	class Stand(Node):
 		def run(self):
@@ -59,11 +65,23 @@ class Playing(StateMachine):
     def setup(self):
         sit = pose.Sit()
         head_left = self.TurnHead()
-        body_left = self.TurnBody()
+        body_left_in_place = self.TurnBodyLeftInPlace()
+        body_right_in_place = self.TurnBodyRightInPlace()
+        body_left_walking = self.TurnBodyLeftWalking()
         walk = self.Walk()
         stand = self.Stand()
         off = self.Off()
 
 #         self.trans(stand, C, walk, T(2.0), head_left, C, sit, C, off) # walk, turn head left
-        self.trans(stand, C, body_left, T(4.0), sit, C, off) # walk in a curve
-#         self.trans(stand, C, walk, T(2.0), body_left, T(2.0), sit, C, off) # walk forward and then turn in place
+#         self.trans(stand, C, body_left_walking, T(4.0), sit, C, off) # walk in a curve
+#         self.trans(stand, C, walk, T(2.0), body_left_in_place, T(2.0), sit, C, off) # walk forward and then turn in place
+
+        # all the motions (walk forward, turn left in place, walk and turn left simultaneously, sit, turn head left
+        self.trans(stand, C,
+                   walk, T(2.0),
+                   body_left_in_place, T(2.0),
+                   body_left_walking, T(6.0),
+                   body_right_in_place, T(5.5),
+                   sit, C,
+                   head_left, C,
+                   off)
