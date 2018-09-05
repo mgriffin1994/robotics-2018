@@ -47,6 +47,10 @@ class Playing(StateMachine):
                 memory.speech.say("panned head")
                 self.finish()
 
+    class TurnBody(Node):
+        def run(self):
+            commands.setWalkVelocity(0.5, 0.0, 0.3)
+
 	class Stand(Node):
 		def run(self):
 			commands.stand()
@@ -55,8 +59,11 @@ class Playing(StateMachine):
     def setup(self):
         sit = pose.Sit()
         head_left = self.TurnHead()
+        body_left = self.TurnBody()
+        walk = self.Walk()
         stand = self.Stand()
         off = self.Off()
 
-        self.trans(sit, C, head_left, C, stand, C, off)
-#         self.trans(sit, C, head_left, C, off)
+#         self.trans(stand, C, walk, T(2.0), head_left, C, sit, C, off) # walk, turn head left
+        self.trans(stand, C, body_left, T(4.0), sit, C, off) # walk in a curve
+#         self.trans(stand, C, walk, T(2.0), body_left, T(2.0), sit, C, off) # walk forward and then turn in place
