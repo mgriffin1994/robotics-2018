@@ -33,8 +33,8 @@ unsigned char* ImageProcessor::getImg() {
 //  cv::Mat mat;
 //  int xstep_ = 1 << iparams_.defaultHorizontalStepScale;
 //  int ystep_ = 1 << iparams_.defaultVerticalStepScale;
-//  cv::resize(color_segmenter_->img_grayscale(), mat, cv::Size(), 1.0 / xstep_, 1.0 / ystep_, cv::INTER_NEAREST); 
-  
+//  cv::resize(color_segmenter_->img_grayscale(), mat, cv::Size(), 1.0 / xstep_, 1.0 / ystep_, cv::INTER_NEAREST);
+
 //  cv::imwrite(filepath, mat);
 //}
 
@@ -143,18 +143,18 @@ void ImageProcessor::detectBall() {
   ball->seen = true;
 }
 
-struct Run {
+typedef struct Run {
 	Run* lead_parent;
-  int start;
+    int start;
 	int end;
 	int row;
 	uint8_t color;
-  std::vector<Run *> possible_parents;
+    std::vector<Run *> possible_parents;
 	bool addedToBlob;
 	int blobnum;
-}
+} Run;
 
-struct Blob {
+typedef struct Region {
 	int centerx;
 	int centery;
 	int minx;
@@ -163,18 +163,22 @@ struct Blob {
 	int maxy;
 	int numRuns;
 	int blobSize;
-}
+} Region;
 
-bool compareBlobs(const Blob *a, const Blob *b){
+bool compareBlobs(const Region *a, const Region *b){
 	return a->blobSize < b->blobSize;
 }
 
 bool ImageProcessor::findBall(int& imageX, int& imageY) {
+
+    // TODO: temp
+    printf(" ============================================== hi ====================\n");
+
   imageX = imageY = 0;
   auto segImg = getSegImg();
 
-	std::vector<std::vector<Run *>> all_runs;	
-	
+	std::vector<std::vector<Run *>> all_runs;
+
 
 	// Process from left to right
 	for(int x = 0; x < 320; x++) {
@@ -192,20 +196,20 @@ bool ImageProcessor::findBall(int& imageX, int& imageY) {
 					headcol = c;
 					continue;
 				}
-				if(old_col != c && old_col == c_ORANGE) {
+				if(oldcol != c && oldcol == c_ORANGE) {
 					//create Run object when detect color change from orange
-					cur_run = new Run();
+					Run cur_run;
 					cur_run.start = headx;
 					cur_run.end = oldx;
 					cur_run.lead_parent = &cur_run;
-					cur_run.color = old_col;
+					cur_run.color = oldcol;
 					cur_run.addedToBlob = false;
 					cur_run.row = y;
-					cur_run.blobnum = -1;	
-					
+					cur_run.blobnum = -1;
+
 					if(y != 0) {
 						//look at all runs in previous row and find parents
-						for(int i=0; i < all_runs[y-1].size(); i++{
+						for(int i=0; i < all_runs[y-1].size(); i++){
 							Run run = *all_runs[y-1][i];
 							if(run.color == cur_run.color && ((run.start >= cur_run.start && run.start <= cur_run.end) || (run.end >= cur_run.start && run.end <= cur_run.end))){
 								if(cur_run.lead_parent == &cur_run){
@@ -221,7 +225,7 @@ bool ImageProcessor::findBall(int& imageX, int& imageY) {
 					}
 					hor_runs.push_back(&cur_run);
 				}
-				if(old_col != c && c == c_ORANGE){
+				if(oldcol != c && c == c_ORANGE){
 					headx = x;
 					headcol = c;
 				}
@@ -237,28 +241,28 @@ bool ImageProcessor::findBall(int& imageX, int& imageY) {
 			if(run.possible_parents.size() > 0){
 				for(int k=0; k < run.possible_parents.size(); k++){
 					Run parent = *run.possible_parents[k];
-					if(*(parent.lead_parent).lead_parent == parent.lead_parent){
-						*(parent.lead_parent).lead_parent = run.lead_parent;
+					if((*(parent.lead_parent)).lead_parent == parent.lead_parent){
+						(*(parent.lead_parent)).lead_parent = run.lead_parent;
 					}
 				}
 			}
 		}
 	}
-	
+
 	//create blobs
-	std::vector<Blob *> blobs;
-	numblobs = 0;	
+	std::vector<Region *> blobs;
+	int numblobs = 0;
 	for(int i=0; i < all_runs.size(); i++){
 		for(int j=0; j < all_runs[i].size(); j++){
 			Run run = *all_runs[i][j];
-			//create blobs whenever encouter root node or any of it's children	
-			parent = *(run.lead_parent)
-			grand_parent = *(parent.lead_parent)
-			
-	
+			//create blobs whenever encouter root node or any of it's children
+			Run parent = *(run.lead_parent);
+			Run grand_parent = *(parent.lead_parent);
+
+
 			if(!grand_parent.addedToBlob){
 				grand_parent.addedToBlob = true;
-				Blob blob = new Blob();
+				Region blob;
 				blob.centerx = (run.start + run.end) / 2;
 				blob.centery = run.row;
 				blob.minx = run.start;
@@ -266,30 +270,29 @@ bool ImageProcessor::findBall(int& imageX, int& imageY) {
 				blob.maxx = run.end;
 				blob.maxy = run.row;
 				blob.numRuns = 1;
-				blobs.size = (maxx - minx) * (maxy - miny);
-				grad_parent.blobnum = numblobs++; 
+				blob.blobSize = (blob.maxx - blob.minx) * (blob.maxy - blob.miny);
+				grand_parent.blobnum = numblobs++;
 			} else {
 				//find correct relevant blob already existing and update it's values
-				Blob blob = *blobs[grand_parent.blobnum];
-				blob.minx = ((blob.minx < run.start) ? blob.minx : run.start);	
+				Region blob = *blobs[grand_parent.blobnum];
+				blob.minx = ((blob.minx < run.start) ? blob.minx : run.start);
 				blob.maxx = ((blob.maxx > run.end) ? blob.maxx : run.end);
 				blob.miny = ((blob.miny < run.row) ? blob.minx : run.row);
 				blob.maxy = ((blob.maxy > run.row) ? blob.minx : run.row);
 				blob.centerx = blob.centerx + (int)((((run.start + run.end) / 2) - blob.centerx) / blob.numRuns);
 				blob.numRuns++;
-				blobs.size = (blob.maxx - blob.minx)*(blob.maxy-blob.miny);
+				blob.blobSize = (blob.maxx - blob.minx) * (blob.maxy - blob.miny);
 			}
 		}
 
 	}
 	std::sort(blobs.begin(), blobs.end(), compareBlobs);
-	if(blobs.size() > 0 && blobs[0].size > 225){
-		imageX = blobs[0].centerx;
-		imageY = blobs[0].centery;
+	if(blobs.size() > 0 && blobs[0]->blobSize > 225){
+		imageX = blobs[0]->centerx;
+		imageY = blobs[0]->centery;
 		return true;
-	} else {
-		return false;
 	}
+    return false;
 }
 
 
