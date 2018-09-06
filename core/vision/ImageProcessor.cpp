@@ -129,18 +129,19 @@ void ImageProcessor::processFrame(){
 void ImageProcessor::detectBall() {
   // Code taken from https://github.com/LARG/robotics-2018/blob/master/documentation/codebase_tutorial.md
   int imageX, imageY;
-  if(!findBall(imageX, imageY)) return; // function defined elsewhere that fills in imageX, imageY by reference
-  WorldObject* ball = &vblocks_.world_object->objects_[WO_BALL];
-
-  ball->imageCenterX = imageX;
-  ball->imageCenterY = imageY;
-
-  Position p = cmatrix_.getWorldPosition(imageX, imageY);
-  ball->visionBearing = cmatrix_.bearing(p);
-  ball->visionElevation = cmatrix_.elevation(p);
-  ball->visionDistance = cmatrix_.groundDistance(p);
-
-  ball->seen = true;
+  return;
+//   if(!findBall(imageX, imageY)) return; // function defined elsewhere that fills in imageX, imageY by reference
+//   WorldObject* ball = &vblocks_.world_object->objects_[WO_BALL];
+// 
+//   ball->imageCenterX = imageX;
+//   ball->imageCenterY = imageY;
+// 
+//   Position p = cmatrix_.getWorldPosition(imageX, imageY);
+//   ball->visionBearing = cmatrix_.bearing(p);
+//   ball->visionElevation = cmatrix_.elevation(p);
+//   ball->visionDistance = cmatrix_.groundDistance(p);
+// 
+//   ball->seen = true;
 }
 
 typedef struct Run {
