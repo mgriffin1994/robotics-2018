@@ -19,9 +19,10 @@ class BallFound(Node):
     def run(self):
         ball = mem_objects.world_objects[core.WO_BALL]
         print(ball.seen)
-        if ball.seen:
-            memory.speech.say("ball found")
-            print(ball.imageCenterX, ball.imageCenterY)
+        if self.getTime() > 4.0:
+            if ball.seen:
+                memory.speech.say("ball found")
+                print(ball.imageCenterX, ball.imageCenterY)
 
 class Playing(LoopingStateMachine):
     class Off(Node):
@@ -37,6 +38,6 @@ class Playing(LoopingStateMachine):
         ball_turn = BallFound()
         off = self.Off()
 
-        # self.add_transition(ball_turn, T(4), ball_turn)
-        self.add_transition(ball_turn)
+        self.add_transition(ball_turn, T(4), ball_turn)
+        #self.add_transition(ball_turn)
         # self.trans(ball_turn, T(4), sit, C, off)
