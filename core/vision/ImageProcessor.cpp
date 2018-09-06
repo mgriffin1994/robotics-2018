@@ -123,7 +123,60 @@ void ImageProcessor::processFrame(){
   tlog(30, "Classifying Image: %i", camera_);
   if(!color_segmenter_->classifyImage(color_table_)) return;
   detectBall();
+  detectGoal();
   beacon_detector_->findBeacons();
+}
+
+void ImageProcessor::detectGoal() {
+  // Code taken from https://github.com/LARG/robotics-2018/blob/master/documentation/codebase_tutorial.md
+  int imageX, imageY;
+  if(!findGoal(imageX, imageY)) return; // function defined elsewhere that fills in imageX, imageY by reference
+  WorldObject* goal = &vblocks_.world_object->objects_[WO_OWN_GOAL];
+
+  goal->imageCenterX = imageX;
+  goal->imageCenterY = imageY;
+ 
+  Position p = cmatrix_.getWorldPosition(imageX, imageY);
+  goal->visionBearing = cmatrix_.bearing(p);
+  goal->visionElevation = cmatrix_.elevation(p);
+  goal->visionDistance = cmatrix_.groundDistance(p);
+
+  goal->seen = true;
+}
+
+bool ImageProcessor::findGoal(int& imageX, int& imageY) {
+    imageX = imageY = 0;
+    float centerX, centerY = 0.0;
+    
+    int total = 1;
+    // Process from left to right
+    for(int x = 0; x < iparams_.width; x++) {
+        // Process from top to bottom
+        for(int y = 0; y < iparams_.height; y++) {
+            // Retrieve the segmented color of the pixel at (x,y)
+            auto c = getSegImg()[y * iparams_.width + x];
+            if(c == c_BLUE){
+                centerX = centerX + (((float)x-centerX) / (float)total);
+                centerY = centerY + (((float)y-centerY) / (float)total);
+                total++;
+            }
+        }
+    }
+    imageX = (int) centerX;
+    imageY = (int) centerY;
+
+    imageX = (imageX < 0.1*iparams_.width) ? 0.1*iparams_.width : imageX;
+    imageX = (imageX > 0.9*iparams_.width) ? 0.9*iparams_.width : imageX;
+    
+    imageY = (imageY < 0.1*iparams_.height) ? 0.1*iparams_.height : imageY;
+    imageY = (imageY > 0.9*iparams_.height) ? 0.9*iparams_.height : imageY;
+
+    
+    printf("total blue pixels: %i\n", total);
+    if(total > 200){
+        return true;
+    }
+    return false;
 }
 
 void ImageProcessor::detectBall() {
