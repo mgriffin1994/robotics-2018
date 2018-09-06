@@ -114,7 +114,7 @@ void ImageProcessor::setCalibration(const RobotCalibration& calibration){
 void ImageProcessor::processFrame(){
   if(vblocks_.robot_state->WO_SELF == WO_TEAM_COACH && camera_ == Camera::BOTTOM) return;
   tlog(30, "Process Frame camera %i", camera_);
-
+  //printf("camera bottom: %i, camera name: %i\n", camera_ == Camera::BOTTOM, camera_);
   // Horizon calculation
   tlog(30, "Calculating horizon line");
   updateTransform();
@@ -176,9 +176,9 @@ bool ImageProcessor::findBall(int& imageX, int& imageY) {
     
     int total = 1;
     // Process from left to right
-    for(int x = 0; x < 320; x++) {
+    for(int x = 0; x < iparams_.width; x++) {
         // Process from top to bottom
-        for(int y = 0; y < 240; y++) {
+        for(int y = 0; y < iparams_.height; y++) {
             // Retrieve the segmented color of the pixel at (x,y)
             auto c = getSegImg()[y * iparams_.width + x];
             //printf("color: %i\n", c);
