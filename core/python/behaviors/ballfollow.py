@@ -16,13 +16,15 @@ class TurnTowardBall(Node):
     def run(self):
         ball = mem_objects.world_objects[core.WO_BALL]
         if(ball.seen):
-            commands.setHeadPan(ball.bearing, 0.1)
-            if self.getTime() > 0.1:
-                print(ball.bearing
-                print(ball.seen, ball.imageCenterX, ball.imageCenterY)
-            #    self.finish()
+            # commands.setHeadPanTilt(ball.visionBearing, ball.visionElevation, 0.5)
+            commands.setHeadPan(ball.visionBearing, 0.1)
+#            if self.getTime() > 0.1:
+            print(ball.visionBearing, ball.visionElevation)
+            print(ball.seen, ball.imageCenterX, ball.imageCenterY)
+#                self.finish()
 
 class Playing(LoopingStateMachine):
     def setup(self):
         ball_turn = TurnTowardBall()
-        self.add_transition(ball_turn, T(0.2), ball_turn)
+        # self.add_transition(ball_turn, T(0.2), ball_turn)
+        self.add_transition(ball_turn)

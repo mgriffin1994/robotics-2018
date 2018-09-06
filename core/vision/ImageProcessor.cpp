@@ -193,9 +193,17 @@ bool ImageProcessor::findBall(int& imageX, int& imageY) {
     }
     imageX = (int) centerX;
     imageY = (int) centerY;
+
+    imageX = (imageX < 0.1*iparams_.width) ? 0.1*iparams_.width : imageX;
+    imageX = (imageX > 0.9*iparams_.width) ? 0.9*iparams_.width : imageX;
+    
+    imageY = (imageY < 0.1*iparams_.height) ? 0.1*iparams_.height : imageY;
+    imageY = (imageY > 0.9*iparams_.height) ? 0.9*iparams_.height : imageY;
+    
+    
     //printf("total orange pixels: %i\n", total);
     //printf("center of orange pixels: %i, %i\n", imageX, imageY);
-    if(total > 10){
+    if(total > 100){
         return true;
     }
     return false;

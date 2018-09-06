@@ -18,26 +18,14 @@ import UTdebug
 class BallFound(Node):
     def run(self):
         ball = mem_objects.world_objects[core.WO_BALL]
-        print(ball.seen)
-        if self.getTime() > 4.0:
-            if ball.seen:
-                memory.speech.say("ball found")
-                print(ball.imageCenterX, ball.imageCenterY)
+        if ball.seen:
+            print(ball.seen, ball.visionBearing)
+            print(ball.imageCenterX, ball.imageCenterY)
 
 class Playing(LoopingStateMachine):
-    class Off(Node):
-        def run(self):
-            commands.setStiffness(cfgstiff.Zero)
-            if self.getTime() > 2.0:
-                # memory.speech.say("turned off stiffness")
-                self.finish()
-
-
     def setup(self):
-        sit = pose.Sit()
         ball_turn = BallFound()
-        off = self.Off()
 
-        self.add_transition(ball_turn, T(4), ball_turn)
-        #self.add_transition(ball_turn)
+        #self.add_transition(ball_turn, T(4), ball_turn)
+        self.add_transition(ball_turn)
         # self.trans(ball_turn, T(4), sit, C, off)
