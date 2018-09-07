@@ -5,6 +5,8 @@ from __future__ import division
 from __future__ import absolute_import
 
 import core
+import pose
+import cfgstiff
 import commands
 import mem_objects
 from state_machine import Node, S, T, C, LoopingStateMachine
@@ -24,7 +26,16 @@ class TurnTowardBall(Node):
 #                self.finish()
 
 class Playing(LoopingStateMachine):
+    def run(self):
+        commands.setStiffness()
+        ball = mem_objects.world_objects[core.WO_BALL]
+        if ball.seen:
+            commands.setHeadPan(ball.bearing, 0.1)
+            print(ball.bearing, ball.visionElevation)
+            print(ball.seen, ball.imageCenterX, ball.imageCenterY)
+
     def setup(self):
         ball_turn = TurnTowardBall()
+        # sit = pose.Sit()
         # self.add_transition(ball_turn, T(0.2), ball_turn)
         self.add_transition(ball_turn)
