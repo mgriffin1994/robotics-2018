@@ -15,13 +15,12 @@ import UTdebug
 class TurnTowardBall(Node):
     def run(self):
         ball = mem_objects.world_objects[core.WO_BALL]
+        commands.setStiffness()
         if(ball.seen):
-            commands.setHeadPan(ball.bearing, 0.5)
-            if self.getTime() > 0.5:
-                print(ball.seen, ball.imageCenterX, ball.imageCenterY)
-            #    self.finish()
+            commands.setHeadPanTilt(ball.bearing, 0.3)
+            print(ball.seen, ball.imageCenterX, ball.imageCenterY)
 
 class Playing(LoopingStateMachine):
     def setup(self):
         ball_turn = TurnTowardBall()
-        self.add_transition(ball_turn, T(0.6), ball_turn)
+        self.add_transition(ball_turn, T(0.3), ball_turn)
