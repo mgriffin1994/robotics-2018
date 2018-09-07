@@ -149,10 +149,11 @@ bool ImageProcessor::findGoal(int& imageX, int& imageY) {
     float centerX, centerY = 0.0;
     
     int total = 1;
+    int step = iparams_.width / 320;
     // Process from left to right
-    for(int x = 0; x < iparams_.width; x++) {
+    for(int x = 0; x < iparams_.width; x+=step) {
         // Process from top to bottom
-        for(int y = 0; y < iparams_.height; y++) {
+        for(int y = 0; y < iparams_.height; y+=step) {
             // Retrieve the segmented color of the pixel at (x,y)
             auto c = getSegImg()[y * iparams_.width + x];
             if(c == c_BLUE){
@@ -228,10 +229,11 @@ bool ImageProcessor::findBall(int& imageX, int& imageY) {
     float centerX, centerY = 0.0;
     
     int total = 1;
+    int step = iparams_.width / 320;
     // Process from left to right
-    for(int x = 0; x < iparams_.width; x++) {
+    for(int x = 0; x < iparams_.width; x+=step) {
         // Process from top to bottom
-        for(int y = 0; y < iparams_.height; y++) {
+        for(int y = 0; y < iparams_.height; y+=step) {
             // Retrieve the segmented color of the pixel at (x,y)
             auto c = getSegImg()[y * iparams_.width + x];
             //printf("color: %i\n", c);
