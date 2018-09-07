@@ -173,8 +173,8 @@ bool ImageProcessor::findGoal(int& imageX, int& imageY) {
     imageY = (imageY > 0.9*iparams_.height) ? 0.9*iparams_.height : imageY;
 
     
-    printf("total blue pixels: %i\n", total);
-    if(total > 200){
+    // printf("total blue pixels: %i\n", total);
+    if(total > 2000){
         return true;
     }
     return false;
