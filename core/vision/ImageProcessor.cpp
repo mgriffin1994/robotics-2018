@@ -124,7 +124,7 @@ void ImageProcessor::processFrame(){
   if(!color_segmenter_->classifyImage(color_table_)) return;
 
   std::vector<Region *> blobs;
-//  findBlob(blobs);
+  findBlob(blobs);
 //  detectBall(blobs);
 //  detectGoal(blobs);
   beacon_detector_->findBeacons();
@@ -281,23 +281,23 @@ void ImageProcessor::findBlob(std::vector<Region *>& blobs) {
         }
         all_runs.push_back(hor_runs);
     }
-//
-//    //path compression
-//    for(int i=0; i < all_runs.size(); i++){
-//        for(int j=0; j < all_runs[i].size(); j++){
-//            Run run = *(all_runs[i][j]);
-//            if(run.possible_parents.size() > 0){
-//                for(int k=0; k < run.possible_parents.size(); k++){
-//                    Run parent = *(run.possible_parents[k]);
-//                    Run grand_parent = *(parent.lead_parent);
-//                    if(grand_parent.lead_parent == parent.lead_parent){
-//                        grand_parent.lead_parent = run.lead_parent;
-//                    }
-//                }
-//            }
-//        }
-//    }
-//
+
+    //path compression
+    for(int i=0; i < all_runs.size(); i++){
+        for(int j=0; j < all_runs[i].size(); j++){
+            Run run = *(all_runs[i][j]);
+            if(run.possible_parents.size() > 0){
+                for(int k=0; k < run.possible_parents.size(); k++){
+                    Run parent = *(run.possible_parents[k]);
+                    Run grand_parent = *(parent.lead_parent);
+                    if(grand_parent.lead_parent == parent.lead_parent){
+                        grand_parent.lead_parent = run.lead_parent;
+                    }
+                }
+            }
+        }
+    }
+
 
     //create blobs
 //    int numblobs = 0;
