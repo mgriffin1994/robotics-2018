@@ -3,6 +3,7 @@
 #include <vision/BeaconDetector.h>
 #include <vision/Logging.h>
 #include <iostream>
+#include <algorithm>
 
 ImageProcessor::ImageProcessor(VisionBlocks& vblocks, const ImageParams& iparams, Camera::Type camera) :
   vblocks_(vblocks), iparams_(iparams), camera_(camera), cmatrix_(iparams_, camera)
@@ -154,12 +155,13 @@ void ImageProcessor::detectGoal(std::vector<BlobRegion *> &blobs) {
 
 void ImageProcessor::detectBall(std::vector<BlobRegion *> &blobs) {
   // Code taken from https://github.com/LARG/robotics-2018/blob/master/documentation/codebase_tutorial.md
-  int imageX, imageY;
-  if(!findBall(blobs, imageX, imageY)) return; // function defined elsewhere that fills in imageX, imageY by reference
+  int imageX, imageY, radius;
+  if(!findBall(blobs, imageX, imageY, radius)) return; // function defined elsewhere that fills in imageX, imageY by reference
   WorldObject* ball = &vblocks_.world_object->objects_[WO_BALL];
 
   ball->imageCenterX = imageX;
   ball->imageCenterY = imageY;
+  ball->radius = radius;
 
   Position p = cmatrix_.getWorldPosition(imageX, imageY);
   ball->visionBearing = cmatrix_.bearing(p);
@@ -171,18 +173,19 @@ void ImageProcessor::detectBall(std::vector<BlobRegion *> &blobs) {
 }
 
 bool compareBlobs(const BlobRegion *a, const BlobRegion *b){
-	return a->blobSize < b->blobSize;
+	return a->blobSize > b->blobSize;
 }
 
-bool ImageProcessor::findBall(std::vector<BlobRegion *> &blobs, int& imageX, int& imageY) {
-    imageX = imageY = 0;
+bool ImageProcessor::findBall(std::vector<BlobRegion *> &blobs, int& imageX, int& imageY, int& radius) {
+    imageX = imageY = radius = 0;
     for (int i = 0; i < blobs.size(); i++) {
         BlobRegion blob = *blobs[i];
         if (blob.color == c_ORANGE) {
             // TODO: more heuristics here?
-            if (blob.blobSize > 100) {
+            if (blob.blobSize > 0) {
                 imageX = blob.centerx;
                 imageY = blob.centery;
+                radius = std::max(blob.maxx - blob.minx, blob.maxy - blob.miny) / 2;
                 printf("centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n", 
                     blob.centerx, blob.centery, blob.minx, blob.miny, blob.maxx, blob.maxy, blob.numRuns, blob.blobSize, blob.color);
                 return true;
@@ -200,7 +203,7 @@ bool ImageProcessor::findGoal(std::vector<BlobRegion *> &blobs, int& imageX, int
         BlobRegion blob = *blobs[i];
         if (blob.color == c_BLUE) {
             // TODO: more heuristics here?
-            if (blob.blobSize > 200) {
+            if (blob.blobSize > 0) {
                 imageX = blob.centerx;
                 imageY = blob.centery;
                 printf("centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n", 
@@ -248,9 +251,6 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
                 cur_run_ptr->blobnum = -1;
                 cur_run_ptr->possible_parents = {};
 
-                headx = x;
-                headcol = c;
-
                 if(y != 0) {
                     //look at all runs in previous row and find parents
                     for(int i=0; i < all_runs[(y / step) - 1].size(); i++){
@@ -260,6 +260,7 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
                                     || (run_ptr->end >= cur_run_ptr->start && run_ptr->end <= cur_run_ptr->end))){
                             if(cur_run_ptr->lead_parent == cur_run_ptr){
                                 cur_run_ptr->lead_parent = run_ptr->lead_parent;
+                                printf("Found new lead_parent!\n");
                             } else {
                                 cur_run_ptr->possible_parents.push_back(run_ptr);
                             }
@@ -271,6 +272,12 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
                 }
                 hor_runs.push_back(cur_run_ptr);
             }
+
+            if (oldcol != c) {
+                headx = x;
+                headcol = c;
+            }
+
             oldx = x;
             oldcol = c;
         }
@@ -288,6 +295,7 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
                     Run *grand_parent_ptr = parent_ptr->lead_parent;
                     if(grand_parent_ptr->lead_parent == parent_ptr->lead_parent){
                         grand_parent_ptr->lead_parent = run_ptr->lead_parent;
+                        printf("Compressing path!\n");
                     }
                 }
             }
@@ -313,12 +321,13 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
                 blob_ptr->maxx = run_ptr->end;
                 blob_ptr->maxy = run_ptr->row;
                 blob_ptr->numRuns = 1;
-                blob_ptr->blobSize = (blob_ptr->maxx - blob_ptr->minx+1);
+                blob_ptr->blobSize = (blob_ptr->maxx - blob_ptr->minx+1) / step;
                 blob_ptr->color = run_ptr->color;
                 grand_parent_ptr->blobnum = numblobs++;
                 blobs.push_back(blob_ptr);
             } else {
                 //find correct relevant blob already existing and update it's values
+                printf("Adding to existing blob\n");
                 blob_ptr = blobs[grand_parent_ptr->blobnum];
                 blob_ptr->minx = ((blob_ptr->minx < run_ptr->start) ? blob_ptr->minx : run_ptr->start);
                 blob_ptr->maxx = ((blob_ptr->maxx > run_ptr->end) ? blob_ptr->maxx : run_ptr->end);
@@ -327,7 +336,7 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
                 blob_ptr->centerx += (int) ((((run_ptr->start + run_ptr->end + 1) / 2) - blob_ptr->centerx + 1) / blob_ptr->numRuns);
                 blob_ptr->centery += (int) ((run_ptr->row - blob_ptr->centery + 1) / blob_ptr->numRuns);
                 blob_ptr->numRuns++;
-                blob_ptr->blobSize = (blob_ptr->maxx - blob_ptr->minx+1) * (blob_ptr->maxy - blob_ptr->miny+1);
+                blob_ptr->blobSize = (blob_ptr->maxx - blob_ptr->minx+1) * (blob_ptr->maxy - blob_ptr->miny+1) / (step * step);
             }
         }
     }

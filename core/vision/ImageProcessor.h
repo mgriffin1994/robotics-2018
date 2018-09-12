@@ -67,7 +67,7 @@ class ImageProcessor {
     
     void detectBall(std::vector<BlobRegion *> &blobs);
     void detectGoal(std::vector<BlobRegion *> &blobs);
-    bool findBall(std::vector<BlobRegion *> &blobs, int& imageX, int& imageY);
+    bool findBall(std::vector<BlobRegion *> &blobs, int& imageX, int& imageY, int& radius);
     bool findGoal(std::vector<BlobRegion *> &blobs, int& imageX, int& imageY);
     void findBlob(std::vector<BlobRegion *>& blobs);
 
