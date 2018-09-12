@@ -221,40 +221,47 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
 
     auto segImg = getSegImg();
     int step = iparams_.width / 320;
+    //TODO: make sure it works when step is always 1
 
     std::vector<std::vector<Run *>> all_runs;
 
-    // Process from left to right
+    // Process from top to bottom
     for(int y = 0; y < iparams_.height; y+=step) {
-        // Process from top to bottom
+        // Process from left to right
         std::vector<Run *> hor_runs;
         for(int x = 0; x < iparams_.width; x+=step) {
             // Retrieve the segmented color of the pixel at (x,y)
-            uint8_t c = segImg [y * iparams_.width + x];
-            int oldx, headx, headcol;
-            uint8_t oldcol;
-            if(x==0) {
-                oldx = x;
-                oldcol = c;
-                headx = oldx;
-                headcol = c;
+            int headx;
+            if(x == 0) {
+                headx = x;
                 continue;
             }
-            if(oldcol != c && (oldcol == c_ORANGE || oldcol == c_BLUE || oldcol == c_YELLOW || oldcol == c_PINK)) {
+
+            uint8_t c = segImg [y * iparams_.width + x]; //color at current step
+            uint8_t old_col = segImg[y * iparams_.width + (x - step)]; //color at previous step
+
+
+            //detect a run whenever the color changes and when just finished a run of orange, blue, yellow, or pink color pixels
+            if(old_col != c && (old_col == c_ORANGE || old_col == c_BLUE || old_col == c_YELLOW || old_col == c_PINK)) {
                 //create Run object when detect color change from orange
                 Run *cur_run_ptr = new Run();
-                cur_run_ptr->start = headx;
-                cur_run_ptr->end = oldx;
-                cur_run_ptr->lead_parent = cur_run_ptr;
-                cur_run_ptr->color = oldcol;
-                cur_run_ptr->row = y;
-                cur_run_ptr->blobnum = -1;
-                cur_run_ptr->possible_parents = {};
+                cur_run_ptr->start = headx; //head x is either start of row or last time the color changed (below)
+                cur_run_ptr->end = x - step; //end of run should be previous x value
+                cur_run_ptr->lead_parent = cur_run_ptr; //start as self pointer
+                cur_run_ptr->color = old_col; //color of run, color before color switched to new value c
+                cur_run_ptr->row = y; //row is current row y
+                cur_run_ptr->blobnum = -1; //default blobnum is -1 (later assigned to index within blobregion vector)
+                cur_run_ptr->possible_parents = {}; //list of non-lead parents (all parents to right of lead_parent)
 
+                //don't look for parents if in first row
                 if(y != 0) {
                     //look at all runs in previous row and find parents
-                    for(int i=0; i < all_runs[(y / step) - 1].size(); i++){
-                        Run *run_ptr = all_runs[(y / step) - 1][i];
+                    int row_above = (y/step) - 1; // y/step is current iteration through outer loop
+                    for(int i=0; i < all_runs[row_above].size(); i++){ 
+                        Run *run_ptr = all_runs[row_above][i];
+                        if(run_ptr->end < cur_run_ptr->start){
+                          continue; //ignore runs that are entirely before this one
+                        }
                         if(run_ptr->color == cur_run_ptr->color && 
                                 ((run_ptr->start >= cur_run_ptr->start && run_ptr->start <= cur_run_ptr->end) 
                                     || (run_ptr->end >= cur_run_ptr->start && run_ptr->end <= cur_run_ptr->end))){
@@ -263,23 +270,21 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
                                 printf("Found new lead_parent!\n");
                             } else {
                                 cur_run_ptr->possible_parents.push_back(run_ptr);
+                                printf("Found new secondary parent!\n");
                             }
                         }
                         if(run_ptr->start > cur_run_ptr->end){
-                            break;
+                            break; //stop looking if got to run beyond this one
                         }
                     }
                 }
                 hor_runs.push_back(cur_run_ptr);
             }
 
-            if (oldcol != c) {
+            //on any color change, change head of next potential run
+            if (old_col != c) {
                 headx = x;
-                headcol = c;
             }
-
-            oldx = x;
-            oldcol = c;
         }
 
         all_runs.push_back(hor_runs);
@@ -291,10 +296,10 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
             Run *run_ptr = all_runs[i][j];
             if(run_ptr->possible_parents.size() > 0){
                 for(int k=0; k < run_ptr->possible_parents.size(); k++){
-                    Run *parent_ptr = run_ptr->possible_parents[k];
+                    Run *parent_ptr = (run_ptr->possible_parents)[k];
                     Run *grand_parent_ptr = parent_ptr->lead_parent;
-                    if(grand_parent_ptr->lead_parent == parent_ptr->lead_parent){
-                        grand_parent_ptr->lead_parent = run_ptr->lead_parent;
+                    if(grand_parent_ptr->lead_parent == grand_parent_ptr){ //default value, then self pointer
+                        grand_parent_ptr->lead_parent = run_ptr->lead_parent; //change grandparent's lead_parent to my lead_parent
                         printf("Compressing path!\n");
                     }
                 }
@@ -312,16 +317,19 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
             Run *parent_ptr = run_ptr->lead_parent;
             Run *grand_parent_ptr = parent_ptr->lead_parent;
 
-            BlobRegion *blob_ptr = new BlobRegion();
-            if(grand_parent_ptr->blobnum == -1){
-                blob_ptr->centerx = (run_ptr->start + run_ptr->end + 1) / 2;
-                blob_ptr->centery = run_ptr->row;
-                blob_ptr->minx = run_ptr->start;
-                blob_ptr->miny = run_ptr->row;
-                blob_ptr->maxx = run_ptr->end;
-                blob_ptr->maxy = run_ptr->row;
+            BlobRegion *blob_ptr;
+            if(grand_parent_ptr->blobnum == -1){ //if my grandparent (root of this blob) hasn't been added yet, create a blob for it
+                blob_ptr = new BlobRegion(); //create new blob in here and not every time outside (was bug)
+
+                //create blob with my statistics, not the root's statistics
+                blob_ptr->centerx = (run_ptr->start + run_ptr->end + 1) / 2; //this is absolute pixel (not downsampled pixel)
+                blob_ptr->centery = run_ptr->row;//this is absolute pixel (not downsampled pixel)
+                blob_ptr->minx = run_ptr->start;//this is absolute pixel (not downsampled pixel)
+                blob_ptr->miny = run_ptr->row;//this is absolute pixel (not downsampled pixel)
+                blob_ptr->maxx = run_ptr->end;//this is absolute pixel (not downsampled pixel)
+                blob_ptr->maxy = run_ptr->row;//this is absolute pixel (not downsampled pixel)
                 blob_ptr->numRuns = 1;
-                blob_ptr->blobSize = (blob_ptr->maxx - blob_ptr->minx+1) / step;
+                blob_ptr->blobSize = (blob_ptr->maxx - blob_ptr->minx + 1); //TODO: don't need downsampled size since never somparing top and bottom camera blobs (was /size)
                 blob_ptr->color = run_ptr->color;
                 grand_parent_ptr->blobnum = numblobs++;
                 blobs.push_back(blob_ptr);
@@ -329,14 +337,14 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
                 //find correct relevant blob already existing and update it's values
                 printf("Adding to existing blob\n");
                 blob_ptr = blobs[grand_parent_ptr->blobnum];
-                blob_ptr->minx = ((blob_ptr->minx < run_ptr->start) ? blob_ptr->minx : run_ptr->start);
-                blob_ptr->maxx = ((blob_ptr->maxx > run_ptr->end) ? blob_ptr->maxx : run_ptr->end);
-                blob_ptr->miny = ((blob_ptr->miny < run_ptr->row) ? blob_ptr->minx : run_ptr->row);
-                blob_ptr->maxy = ((blob_ptr->maxy > run_ptr->row) ? blob_ptr->minx : run_ptr->row);
-                blob_ptr->centerx += (int) ((((run_ptr->start + run_ptr->end + 1) / 2) - blob_ptr->centerx + 1) / blob_ptr->numRuns);
-                blob_ptr->centery += (int) ((run_ptr->row - blob_ptr->centery + 1) / blob_ptr->numRuns);
-                blob_ptr->numRuns++;
-                blob_ptr->blobSize = (blob_ptr->maxx - blob_ptr->minx+1) * (blob_ptr->maxy - blob_ptr->miny+1) / (step * step);
+                blob_ptr->minx = ((blob_ptr->minx < run_ptr->start) ? blob_ptr->minx : run_ptr->start);//this is absolute pixel (not downsampled pixel)
+                blob_ptr->maxx = ((blob_ptr->maxx > run_ptr->end) ? blob_ptr->maxx : run_ptr->end);//this is absolute pixel (not downsampled pixel)
+                blob_ptr->miny = ((blob_ptr->miny < run_ptr->row) ? blob_ptr->minx : run_ptr->row);//this is absolute pixel (not downsampled pixel)
+                blob_ptr->maxy = ((blob_ptr->maxy > run_ptr->row) ? blob_ptr->minx : run_ptr->row);//this is absolute pixel (not downsampled pixel)
+                blob_ptr->centerx += (int) ((((run_ptr->start + run_ptr->end + 1) / 2) - blob_ptr->centerx + 1) / blob_ptr->numRuns);//this is absolute pixel (not downsampled pixel)
+                blob_ptr->centery += (int) ((run_ptr->row - blob_ptr->centery + 1) / blob_ptr->numRuns);//this is absolute pixel (not downsampled pixel)
+                blob_ptr->numRuns = blob_ptr->numRuns + 1;
+                blob_ptr->blobSize = (blob_ptr->maxx - blob_ptr->minx+1) * (blob_ptr->maxy - blob_ptr->miny+1); //TODO: don't need downsampled size since never somparing top and bottom camera blobs (was /size*size)
             }
         }
     }
@@ -350,7 +358,7 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
     }
     all_runs.clear();
 
-    std::sort(blobs.begin(), blobs.end(), compareBlobs);
+    std::sort(blobs.begin(), blobs.end(), compareBlobs); //should sort in decreasing order of size (in absolute size not downsampled size)
 }
 
 
