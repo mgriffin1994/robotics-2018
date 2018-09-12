@@ -23,7 +23,7 @@ typedef struct Run {
     int blobnum;
 } Run;
 
-typedef struct Region {
+typedef struct BlobRegion {
     int centerx;
     int centery;
     int minx;
@@ -33,7 +33,7 @@ typedef struct Region {
     int numRuns;
     int blobSize;
     uint8_t color;
-} Region;
+} BlobRegion;
 
 class BallDetector;
 class Classifier;
@@ -65,11 +65,11 @@ class ImageProcessor {
     BallCandidate* getBestBallCandidate();
     bool isImageLoaded();
     
-    void detectBall(std::vector<Region *> &blobs);
-    void detectGoal(std::vector<Region *> &blobs);
-    bool findBall(std::vector<Region *> &blobs, int& imageX, int& imageY);
-    bool findGoal(std::vector<Region *> &blobs, int& imageX, int& imageY);
-    void findBlob(std::vector<Region *>& blobs);
+    void detectBall(std::vector<BlobRegion *> &blobs);
+    void detectGoal(std::vector<BlobRegion *> &blobs);
+    bool findBall(std::vector<BlobRegion *> &blobs, int& imageX, int& imageY, int& radius);
+    bool findGoal(std::vector<BlobRegion *> &blobs, int& imageX, int& imageY);
+    void findBlob(std::vector<BlobRegion *>& blobs);
 
   private:
     int getTeamColor();
