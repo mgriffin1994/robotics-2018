@@ -217,10 +217,18 @@ bool ImageProcessor::findGoal(std::vector<BlobRegion *> &blobs, int& imageX, int
     return false;
 }
 
+// Top camera: 1280 x 960
+// Bottom camera: 320 x 240
 void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
 
     auto segImg = getSegImg();
     int step = iparams_.width / 320;
+    step = 1;
+
+    // TODO: lol wut?
+    int vstep = 1 << 1;
+    int hstep = 1 << 2;
+
     //TODO: make sure it works when step is always 1
 
     std::vector<std::vector<Run *>> all_runs;
@@ -230,8 +238,8 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
     // TODO: temp
     int count_temp = 0;
 
-    for(int y = 0; y < iparams_.height; y+=step) {
-        for(int x = 0; x < iparams_.width; x+=step) {
+    for(int y = 0; y < iparams_.height; y+=vstep) {
+        for(int x = 0; x < iparams_.width; x+=hstep) {
             // Retrieve the segmented color of the pixel at (x,y)
             if(x == 0) {
                 headx = x;
@@ -239,7 +247,7 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
             }
 
             uint8_t c = segImg [y * iparams_.width + x]; //color at current step
-            uint8_t old_col = segImg[y * iparams_.width + (x - step)]; //color at previous step
+            uint8_t old_col = segImg[y * iparams_.width + (x - hstep)]; //color at previous step
 
             if (c == c_UNDEFINED) {
                 count_temp += 1;
@@ -251,7 +259,7 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
                 //create Run object when detect color change from orange
                 Run *cur_run_ptr = new Run();
                 cur_run_ptr->start = headx; //head x is either start of row or last time the color changed (below)
-                cur_run_ptr->end = x - step; //end of run should be previous x value
+                cur_run_ptr->end = x - hstep; //end of run should be previous x value
 
                 // TODO: remove
                 //printf("old color: %s\n", COLOR_NAME(old_col));
@@ -270,7 +278,7 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
                 //don't look for parents if in first row
                 if(y != 0) {
                     //look at all runs in previous row and find parents
-                    int row_above = (y/step) - 1; // y/step is current iteration through outer loop
+                    int row_above = (y/vstep) - 1; // y/step is current iteration through outer loop
                     // TODO: printf("all_runs[row_above].size(): %d\n", all_runs[row_above].size());
                     for(int i=0; i < all_runs[row_above].size(); i++){
                         printf("for loop ======\n");
