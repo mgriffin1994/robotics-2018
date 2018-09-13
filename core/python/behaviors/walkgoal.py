@@ -15,7 +15,7 @@ goal_threshold_max = 3000
 
 class WalkTowardsGoal(Node):
     def run(self):
-        goal = mem_objects.world_objects[core.WO_OWN_GOAL]
+        goal = mem_objects.world_objects[core.WO_UNKNOWN_GOAL]
         commands.setStiffness()
         print(goal.visionDistance, goal.seen)
         if goal.seen:
