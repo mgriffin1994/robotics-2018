@@ -186,8 +186,10 @@ bool ImageProcessor::findBall(std::vector<BlobRegion *> &blobs, int& imageX, int
                 imageX = blob.centerx;
                 imageY = blob.centery;
                 radius = std::max(blob.maxx - blob.minx, blob.maxy - blob.miny) / 2;
-                printf("centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n",
-                    blob.centerx, blob.centery, blob.minx, blob.miny, blob.maxx, blob.maxy, blob.numRuns, blob.blobSize, blob.color);
+//                if (counter % 100 == 0) {
+//                    printf("centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n",
+//                        blob.centerx, blob.centery, blob.minx, blob.miny, blob.maxx, blob.maxy, blob.numRuns, blob.blobSize, blob.color);
+//                }
                 return true;
             } else {
                 return false;
@@ -222,21 +224,12 @@ bool ImageProcessor::findGoal(std::vector<BlobRegion *> &blobs, int& imageX, int
 void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
 
     auto segImg = getSegImg();
-    int step = iparams_.width / 320;
-    step = 1;
-
-    // TODO: lol wut?
     int vstep = 1 << 1;
     int hstep = 1 << 2;
-
-    //TODO: make sure it works when step is always 1
 
     std::vector<std::vector<Run *>> all_runs;
     int headx;
     std::vector<Run *> hor_runs;
-
-    // TODO: temp
-    int count_temp = 0;
 
     for(int y = 0; y < iparams_.height; y+=vstep) {
         for(int x = 0; x < iparams_.width; x+=hstep) {
@@ -249,26 +242,13 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
             uint8_t c = segImg [y * iparams_.width + x]; //color at current step
             uint8_t old_col = segImg[y * iparams_.width + (x - hstep)]; //color at previous step
 
-            if (c == c_UNDEFINED) {
-                count_temp += 1;
-                continue;
-            }
-
             //detect a run whenever the color changes and when just finished a run of orange, blue, yellow, or pink color pixels
-            if(old_col != c && (old_col == c_ORANGE || old_col == c_BLUE || old_col == c_YELLOW || old_col == c_PINK)) {
+            if((old_col != c && (old_col == c_ORANGE || old_col == c_BLUE || old_col == c_YELLOW || old_col == c_PINK))
+                    || (x == iparams_.width && (c == c_ORANGE || c == c_BLUE || c == c_YELLOW || c == c_PINK))) {
                 //create Run object when detect color change from orange
                 Run *cur_run_ptr = new Run();
                 cur_run_ptr->start = headx; //head x is either start of row or last time the color changed (below)
                 cur_run_ptr->end = x - hstep; //end of run should be previous x value
-
-                // TODO: remove
-                //printf("old color: %s\n", COLOR_NAME(old_col));
-                //printf("cur color: %s\n", COLOR_NAME(c));
-
-                // TODO: remove debug print
-                // printf("start: %d\n", cur_run_ptr->start);
-                // printf("end: %d\n", cur_run_ptr->end);
-
                 cur_run_ptr->lead_parent = cur_run_ptr; //start as self pointer
                 cur_run_ptr->color = old_col; //color of run, color before color switched to new value c
                 cur_run_ptr->row = y; //row is current row y
@@ -279,9 +259,7 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
                 if(y != 0) {
                     //look at all runs in previous row and find parents
                     int row_above = (y/vstep) - 1; // y/step is current iteration through outer loop
-                    // TODO: printf("all_runs[row_above].size(): %d\n", all_runs[row_above].size());
                     for(int i=0; i < all_runs[row_above].size(); i++){
-                        printf("for loop ======\n");
                         Run *run_ptr = all_runs[row_above][i];
                         if(run_ptr->end < cur_run_ptr->start){
                           continue; //ignore runs that are entirely before this one
@@ -289,13 +267,10 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
                         if(run_ptr->color == cur_run_ptr->color &&
                                 ((run_ptr->start >= cur_run_ptr->start && run_ptr->start <= cur_run_ptr->end)
                                     || (run_ptr->end >= cur_run_ptr->start && run_ptr->end <= cur_run_ptr->end))){
-                            printf("we made it boys ===\n");
                             if(cur_run_ptr->lead_parent == cur_run_ptr){ // if current run is pointing to itself
                                 cur_run_ptr->lead_parent = run_ptr->lead_parent;
-                                printf("Found new lead_parent!\n");
                             } else { // occurs if found more than one overlapping run from previous runs above
                                 cur_run_ptr->possible_parents.push_back(run_ptr);
-                                printf("Found new secondary parent!\n");
                             }
                         }
                         if(run_ptr->start > cur_run_ptr->end){
@@ -311,28 +286,20 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
                 headx = x;
             }
         }
-
-        // TODO: (what to do if reach end? because it'll miss a run) --> solution: (if c == <desired colors here>) --> then make a run and pushback
-
-        //printf("hor_runs size: %d\n", hor_runs.size());
         all_runs.push_back(hor_runs);
         hor_runs.clear();
     }
-
-    printf("num of undefined pixels: %d\n", count_temp);
 
     //path compression
     for(int i=0; i < all_runs.size(); i++){
         for(int j=0; j < all_runs[i].size(); j++){
             Run *run_ptr = all_runs[i][j];
             if(run_ptr->possible_parents.size() > 0){
-                printf("run_ptr->possible_parents.size() > 0: %d\n", run_ptr->possible_parents.size() > 0);
                 for(int k=0; k < run_ptr->possible_parents.size(); k++){
                     Run *parent_ptr = (run_ptr->possible_parents)[k];
                     Run *grand_parent_ptr = parent_ptr->lead_parent;
                     if(grand_parent_ptr->lead_parent == grand_parent_ptr){ //default value, then self pointer
                         grand_parent_ptr->lead_parent = run_ptr->lead_parent; //change grandparent's lead_parent to my lead_parent
-                        printf("Compressing path!\n");
                     }
                 }
             }
@@ -348,12 +315,6 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
             //create blobs whenever encouter root node or any of it's children
             Run *parent_ptr = run_ptr->lead_parent;
             Run *grand_parent_ptr = parent_ptr->lead_parent;
-
-//            printf("\n");
-//            printf("parent_ptr: %p\n", parent_ptr);
-//            printf("grand_parent_ptr: %p\n", grand_parent_ptr);
-//            printf("run_ptr: %p\n", run_ptr);
-//            printf("\n");
 
             BlobRegion *blob_ptr;
             if(grand_parent_ptr->blobnum == -1){ //if my grandparent (root of this blob) hasn't been added yet, create a blob for it
@@ -373,7 +334,6 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
                 blobs.push_back(blob_ptr);
             } else {
                 //find correct relevant blob already existing and update it's values
-                printf("Adding to existing blob\n");
                 blob_ptr = blobs[grand_parent_ptr->blobnum];
                 blob_ptr->minx = ((blob_ptr->minx < run_ptr->start) ? blob_ptr->minx : run_ptr->start);//this is absolute pixel (not downsampled pixel)
                 blob_ptr->maxx = ((blob_ptr->maxx > run_ptr->end) ? blob_ptr->maxx : run_ptr->end);//this is absolute pixel (not downsampled pixel)
