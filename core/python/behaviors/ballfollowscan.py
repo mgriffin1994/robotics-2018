@@ -31,6 +31,7 @@ class TurnTowardBall(Node):
 class LookLeft(Node):
     def run(self):
         ball = mem_objects.world_objects[core.WO_BALL]
+        commands.setStiffness()
         commands.setHeadPan(-math.pi/2, time_delay) #default looking left
         if ball.seen: #if can see ball at any time during this break out
             self.finish()

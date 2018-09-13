@@ -190,8 +190,8 @@ bool ImageProcessor::findBall(std::vector<BlobRegion *> &blobs, int& imageX, int
                 imageY = blob.centery;
                 radius = std::max(blob.maxx - blob.minx, blob.maxy - blob.miny) / 2;
 //                if (counter % 100 == 0) {
-//                    printf("centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n",
-//                        blob.centerx, blob.centery, blob.minx, blob.miny, blob.maxx, blob.maxy, blob.numRuns, blob.blobSize, blob.color);
+                  printf("centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n",
+                      blob.centerx, blob.centery, blob.minx, blob.miny, blob.maxx, blob.maxy, blob.numRuns, blob.blobSize, blob.color);
 //                }
                 return true;
             } else {
@@ -355,10 +355,10 @@ void ImageProcessor::findBlob(std::vector<BlobRegion *>& blobs) {
             } else {
                 //find correct relevant blob already existing and update it's values
                 blob_ptr = blobs[grand_parent_ptr->blobnum];
-                blob_ptr->minx = MIN(blob_ptr->minx, run_ptr->start)
-                blob_ptr->maxx = MAX(blob_ptr->maxx, run_ptr->end)
-                blob_ptr->miny = MIN(blob_ptr->miny, run_ptr->row)
-                blob_ptr->maxy = MAX(blob_ptr->maxy, run_ptr->row)
+                blob_ptr->minx = MIN(blob_ptr->minx, run_ptr->start);
+                blob_ptr->maxx = MAX(blob_ptr->maxx, run_ptr->end);
+                blob_ptr->miny = MIN(blob_ptr->miny, run_ptr->row);
+                blob_ptr->maxy = MAX(blob_ptr->maxy, run_ptr->row);
                 blob_ptr->centerx += (int) ((((run_ptr->start + run_ptr->end) / 2) - blob_ptr->centerx + hstep) / blob_ptr->numRuns);
                 blob_ptr->centery += (int) ((run_ptr->row - blob_ptr->centery + hstep) / blob_ptr->numRuns);
                 blob_ptr->numRuns += 1;

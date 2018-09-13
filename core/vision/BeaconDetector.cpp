@@ -2,6 +2,7 @@
 #include <memory/TextLogger.h>
 #include <vision/Logging.h>
 
+
 using namespace Eigen;
 
 BeaconDetector::BeaconDetector(DETECTOR_DECLARE_ARGS) : DETECTOR_INITIALIZE {
@@ -11,7 +12,7 @@ void BeaconDetector::findBeacons(std::vector<BlobRegion *> &blobs) {
   if(camera_ == Camera::BOTTOM) return;
   static map<WorldObjectType,int> heights = {
     { WO_BEACON_BLUE_YELLOW, 300 },
-    { WO_BEACON_YELLOW_BLUE, 300 }
+    { WO_BEACON_YELLOW_BLUE, 300 },
     { WO_BEACON_YELLOW_PINK, 200 },
     { WO_BEACON_PINK_YELLOW, 200 },
     { WO_BEACON_BLUE_PINK, 200 },
@@ -21,12 +22,12 @@ void BeaconDetector::findBeacons(std::vector<BlobRegion *> &blobs) {
   //assuming first color is bottom color, right above white
 
 
-  //static map<WorldObjectType,vector<int>> beacons = {
-  //  { WO_BEACON_YELLOW_BLUE, { 24, 15, 74, 83} },
-  //  { WO_BEACON_YELLOW_PINK, { 104, 41, 138, 96 } },
-  //  { WO_BEACON_PINK_YELLOW, { 187, 38, 212, 90 } },
-  //  { WO_BEACON_BLUE_PINK, { 246, 36, 268, 86 } }
-  //};
+  static map<WorldObjectType,vector<int>> beacons = {
+    { WO_BEACON_YELLOW_BLUE, { 24, 15, 74, 83} },
+    { WO_BEACON_YELLOW_PINK, { 104, 41, 138, 96 } },
+    { WO_BEACON_PINK_YELLOW, { 187, 38, 212, 90 } },
+    { WO_BEACON_BLUE_PINK, { 246, 36, 268, 86 } }
+  };
   //TODO add the other 2 beacons (above in heights) here too
 
   //TODO: find centerx and centery for each of the 6 beacons (containing 4 pink, 4 yellow, 4 blue, and 6 white blobs amongst them)

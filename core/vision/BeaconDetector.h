@@ -1,6 +1,8 @@
 #pragma once
 
 #include <vision/ObjectDetector.h>
+#include <vision/ImageProcessor.h>
+#include <vector>
 
 class TextLogger;
 
