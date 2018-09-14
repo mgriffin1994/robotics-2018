@@ -23,39 +23,31 @@ class TurnTowardBall(Node):
         ball = mem_objects.world_objects[core.WO_BALL]
         if ball.seen:
             commands.setHeadPan(ball.visionBearing, time_delay)
+            print("=======================================")
             print(ball.visionBearing, ball.visionElevation)
             print(ball.seen, ball.imageCenterX, ball.imageCenterY)
+            print("=======================================")
         else:
-            self.finish() #if lose track of ball repeat loop
-
-class LookLeft(Node):
-    def run(self):
-        ball = mem_objects.world_objects[core.WO_BALL]
-        commands.setStiffness()
-        commands.setHeadPan(-math.pi/2, time_delay) #default looking left
-        if ball.seen: #if can see ball at any time during this break out
-            self.finish()
-        if self.getTime() > time_delay: #if over time_delay seconds from start of this node end (done moving head)
             self.finish()
 
 class Scan(Node):
     def run(self):
         ball = mem_objects.world_objects[core.WO_BALL]
+        commands.setStiffness()
         if ball.seen:
             self.finish()
         else:
-            float pan = core.joint_values[core.HeadPan]
-            if (abs(pan - math.pi/2) < eps): #if within eps from full right, turn left
-                commands.setHeadPan(-math.pi/2, time_delay)
-            elif(abs(pan  + math.pi/2) < eps): #if within eps from full left, turn right
-                commands.setHeadPan(math.pi/2, time_delay)
+            pan = core.joint_values[core.HeadPan]
+            if pan >= 0: #if within eps from full right, turn left
+                commands.setHeadPan(-math.pi/4, 3 * time_delay)
+            elif pan < 0: #if within eps from full left, turn right
+                commands.setHeadPan(math.pi/4, 3 * time_delay)
 
 
 class Playing(LoopingStateMachine):
  
     def setup(self):
-        start_scan = LookLeft()
         scan = Scan()
         ball_turn = TurnTowardBall()
 
-        self.add_transition(start_scan, C, scan, C, ball_turn, C)
+        self.add_transition(scan, T(time_delay), ball_turn, C, scan)

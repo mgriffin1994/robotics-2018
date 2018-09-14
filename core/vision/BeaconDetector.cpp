@@ -28,13 +28,37 @@ void BeaconDetector::findBeacons(std::vector<BlobRegion *> &blobs) {
     { WO_BEACON_PINK_YELLOW, { 187, 38, 212, 90 } },
     { WO_BEACON_BLUE_PINK, { 246, 36, 268, 86 } }
   };
-  //TODO add the other 2 beacons (above in heights) here too
 
-  //TODO: find centerx and centery for each of the 6 beacons (containing 4 pink, 4 yellow, 4 blue, and 6 white blobs amongst them)
-  // need to also make sure that the two beacon squares are above a white blob too (shouldn't detect upside down beacons)
-  // also may not have the top k size blobs belong to the beacons (obviously not for blue because of the goal, 
-  // but also pink and yellow because of spurious legs in the shot too that could be larger than beacon colors)
-  // would need to only consider pink, yellow, blue, and white blobs that have very similiar x values (and correct ordering of y values)
+  
+
+//  for (int i = 0; i < blobs.size(); i++) {
+//      BlobRegion blob = *blobs[i];
+//      if (blob.color == c_PINK) {
+//          // TODO: more heuristics here?
+//          if (((camera_ == Camera::TOP) && (blob.blobSize > 50 && blob.blobSize < 200)) || 
+//                  ((camera_ != Camera::TOP) && (blob.blobSize > 1000 && blob.blobSize < 2000))) {
+//              imageX = blob.centerx;
+//              imageY = blob.centery;
+//              // TODO: Get thresholds for correct ball radius
+//              if (std::abs(1.0 - (float)(blob.maxx - blob.minx) / (float)(blob.maxy-blob.miny)) < 0.15) {
+//                  printf("centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n",
+//                          blob.centerx, blob.centery, blob.minx, blob.miny, blob.maxx, blob.maxy, blob.numRuns, blob.blobSize, blob.color);
+//                  break;
+//
+//              }
+//          } else {
+//              return;
+//          }
+//      }
+//  }
+//  return;
+
+  //aspect ratio to distinguish goal from beacon blue 
+  //(could also use ratio of first largest blue to second largest blue and if way higher than 1 first one is goal)
+  //ignore white and make sure high enough
+  //trim blobs list after finding them to only include blobs above a certain size also
+  //then o(n*6) for each beacon look across all found blobs (using n*6 table of blobs) for one with similar x value, size, and the correct higher/lower y value
+  //and then use that combo to find the center of the corresponding beacon
 
 
   auto fid = vblocks_.frame_info->frame_id;
