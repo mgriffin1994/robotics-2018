@@ -143,6 +143,17 @@ void ImageProcessor::processFrame(){
   blobs.clear();
 }
 
+bool checkNearBeacon(BlobRegion *blob1, BlobRegion *blob2, int thresholdx, int thresholdy) {
+    int hor_dist = std::abs(blob1->centerx - blob2->centerx);
+    int vert_dist = std::abs(blob1->centery - blob2->centery);
+
+    if ((hor_dist < thresholdx) && (vert_dist < thresholdy)) {
+        return true;
+    } 
+
+    return false;
+}
+
 void ImageProcessor::detectGoal(std::map<uint8_t, std::vector<BlobRegion *>> &blobs) {
   // Code taken from https://github.com/LARG/robotics-2018/blob/master/documentation/codebase_tutorial.md
   int imageX, imageY;
@@ -213,6 +224,7 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
             // TODO: Why +hstep +vstep?
             radius = std::max(blob->maxx - blob->minx + hstep, blob->maxy - blob->miny + vstep) / 2;
             // TODO: Get thresholds for correct ball radius
+            //       Fix these conditions for far distances, overlay flickers
             printf("aspect ratio: %lf\n", std::abs((float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)));
             if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
                     ((radius > 1) && (radius < 100)) && (blob->density > 0.5)){
@@ -378,6 +390,7 @@ void ImageProcessor::findBlob(std::map<uint8_t, std::vector<BlobRegion *>> &blob
                 blob_ptr->numRuns = 1;
                 blob_ptr->numPixels = (run_ptr->end - run_ptr->start) * vstep;
                 blob_ptr->blobSize = (blob_ptr->maxx - blob_ptr->minx + hstep) * vstep; //actual size in pixels in original image
+                // TODO: Filter out small blobs
                 blob_ptr->color = run_ptr->color;
                 grand_parent_ptr->blobnum = blobs[run_ptr->color].size();
                 std::vector<BlobRegion *> *colored_blobs = &blobs[run_ptr->color];
@@ -404,6 +417,7 @@ void ImageProcessor::findBlob(std::map<uint8_t, std::vector<BlobRegion *>> &blob
     for(it = blobs.begin(); it != blobs.end(); it++) {
         std::vector<BlobRegion *> *colored_blobs = &(it->second);
         for(int i = 0; i < colored_blobs->size(); i++) {
+            // TODO: Filter out sparse blobs
             (*colored_blobs)[i]->density = ((float) (*colored_blobs)[i]->numPixels / (float) (*colored_blobs)[i]->blobSize);
         }
         std::sort(colored_blobs->begin(), colored_blobs->end(), compareBlobs); //should sort in decreasing order of size (in absolute size not downsampled size)

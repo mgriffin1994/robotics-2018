@@ -37,6 +37,8 @@ typedef struct BlobRegion {
     uint8_t color;
 } BlobRegion;
 
+bool checkNearBeacon(BlobRegion* blob1, BlobRegion* blob2, int thresholdx, int thresholdy);
+
 class BallDetector;
 class Classifier;
 class BeaconDetector;
