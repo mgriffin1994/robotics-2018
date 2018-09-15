@@ -11,7 +11,7 @@ class BeaconDetector : public ObjectDetector {
  public:
   BeaconDetector(DETECTOR_DECLARE_ARGS);
   void init(TextLogger* tl){ textlogger = tl; }
-  void findBeacons(std::vector<BlobRegion *> &blobs);
+  void findBeacons(std::map<uint8_t, std::vector<BlobRegion *>> &blobs);
  private:
   TextLogger* textlogger;
 };

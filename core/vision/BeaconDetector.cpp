@@ -8,15 +8,15 @@ using namespace Eigen;
 BeaconDetector::BeaconDetector(DETECTOR_DECLARE_ARGS) : DETECTOR_INITIALIZE {
 }
 
-void BeaconDetector::findBeacons(std::vector<BlobRegion *> &blobs) {
+void BeaconDetector::findBeacons(std::map<uint8_t, std::vector<BlobRegion *>> &blobs) {
   if(camera_ == Camera::BOTTOM) return;
   static map<WorldObjectType,int> heights = {
-    { WO_BEACON_BLUE_YELLOW, 300 },
     { WO_BEACON_YELLOW_BLUE, 300 },
     { WO_BEACON_YELLOW_PINK, 200 },
     { WO_BEACON_PINK_YELLOW, 200 },
+    // { WO_BEACON_PINK_BLUE, 200 },
     { WO_BEACON_BLUE_PINK, 200 },
-    { WO_BEACON_PINK_BLUE, 200 }
+    // { WO_BEACON_BLUE_YELLOW, 300 }
   };
 
   //assuming first color is bottom color, right above white
@@ -26,7 +26,9 @@ void BeaconDetector::findBeacons(std::vector<BlobRegion *> &blobs) {
     { WO_BEACON_YELLOW_BLUE, { 24, 15, 74, 83} },
     { WO_BEACON_YELLOW_PINK, { 104, 41, 138, 96 } },
     { WO_BEACON_PINK_YELLOW, { 187, 38, 212, 90 } },
-    { WO_BEACON_BLUE_PINK, { 246, 36, 268, 86 } }
+    // { WO_BEACON_PINK_BLUE, { } },
+    { WO_BEACON_BLUE_PINK, { 246, 36, 268, 86 } },
+    // { WO_BEACON_BLUE_YELLOW, {} }
   };
 
   

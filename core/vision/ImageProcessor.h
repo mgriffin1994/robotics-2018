@@ -67,11 +67,11 @@ class ImageProcessor {
     BallCandidate* getBestBallCandidate();
     bool isImageLoaded();
     
-    void detectBall(std::vector<BlobRegion *> &blobs);
-    void detectGoal(std::vector<BlobRegion *> &blobs);
-    bool findBall(std::vector<BlobRegion *> &blobs, int& imageX, int& imageY, int& radius);
-    bool findGoal(std::vector<BlobRegion *> &blobs, int& imageX, int& imageY);
-    void findBlob(std::vector<BlobRegion *>& blobs);
+    void detectBall(std::map<uint8_t, std::vector<BlobRegion *>> &blobs);
+    void detectGoal(std::map<uint8_t, std::vector<BlobRegion *>> &blobs);
+    bool findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, int& imageX, int& imageY, int& radius);
+    bool findGoal(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, int& imageX, int& imageY);
+    void findBlob(std::map<uint8_t, std::vector<BlobRegion *>> &blobs);
 
   private:
     int getTeamColor();
