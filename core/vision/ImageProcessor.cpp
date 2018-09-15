@@ -145,9 +145,9 @@ void ImageProcessor::processFrame(){
 
 bool checkNearBeacon(BlobRegion *blob1, BlobRegion *blob2, int thresholdx, int thresholdy) {
     int hor_dist = std::abs(blob1->centerx - blob2->centerx);
-    int vert_dist = std::abs(blob1->centery - blob2->centery);
+    int vert_dist = blob2->centery - blob1->centery; // Not abs because direction matters
 
-    if ((hor_dist < thresholdx) && (vert_dist < thresholdy)) {
+    if ((hor_dist < thresholdx) && (vert_dist > 0) && (vert_dist < thresholdy)) {
         return true;
     } 
 

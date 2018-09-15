@@ -24,6 +24,7 @@ void BeaconDetector::findBeacon(std::map<uint8_t, std::vector<BlobRegion *>> &bl
   std::vector<BlobRegion *> *color1_blobs = &blobs[color1];
   std::vector<BlobRegion *> *color2_blobs = &blobs[color2];
 
+  // TODO:
   //aspect ratio to distinguish goal from beacon blue 
   //(could also use ratio of first largest blue to second largest blue and if way higher than 1 first one is goal)
   //ignore white and make sure high enough
