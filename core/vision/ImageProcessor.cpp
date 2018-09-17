@@ -250,12 +250,14 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
             printf("aspect ratio: %lf\n", std::abs((float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)));
             
 
-            //float focal_pix_constant; //TODO find these
-            //float robo_cam_tilt = vblocks_.joint->getJointValue(HeadPan);
-            //float tilt_angle = atan((float)(iparams_.height / 2 - imageY) / focal_pix_constant) + robo_cam_tilt;
+            float focal_pix_constant 72.0 * 2.18; //default values correct?
+            float robo_cam_tilt = vblocks_.joint->getJointValue(HeadPan);
+            float tilt_angle = (atan((float)(iparams_.height / 2 - imageY) / focal_pix_constant) + robo_cam_tilt) * 180.0 / M_PI;
 
+            //if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
+            //        ((radius > 1) && (radius < 100)) && (blob->density > 0.5)){
             if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
-                    ((radius > 1) && (radius < 100)) && (blob->density > 0.5)){
+                    ((radius > 1) && (radius < 100)) && (blob->density > 0.5 && tilt_angle < 1.5)){
                 printf("centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf\n",
                         blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density);
                 return true;
