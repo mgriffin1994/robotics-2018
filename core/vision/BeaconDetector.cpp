@@ -40,7 +40,6 @@ void BeaconDetector::findBeacon(std::map<uint8_t, std::vector<BlobRegion *>> &bl
               // TODO: Check white below and reasonable height
               if ((color2_blob->blobSize > 0) && checkNearBeacon(color1_blob, color2_blob, 20, 100)) {
                   coordinates = {color1_blob->minx, color1_blob->miny, color2_blob->maxx, color2_blob->maxy};
-                  printf("coord: %d, %d, %d, %d\n", coordinates[0], coordinates[1], coordinates[2], coordinates[3]);
                   return;
               }
           }
@@ -78,8 +77,6 @@ void BeaconDetector::findBeacons(std::map<uint8_t, std::vector<BlobRegion *>> &b
     auto box = beacon.second;
     object.imageCenterX = (box[0] + box[2]) / 2;
     object.imageCenterY = (box[1] + box[3]) / 2;
-    printf("Box: %d, %d, %d, %d\n", box[0], box[1], box[2], box[3]);
-    printf("Beacon centerx: %d, centery: %d\n", object.imageCenterX, object.imageCenterY);
     auto position = cmatrix_.getWorldPosition(object.imageCenterX, object.imageCenterY, heights[beacon.first]);
     object.visionDistance = cmatrix_.groundDistance(position);
     object.visionBearing = cmatrix_.bearing(position);

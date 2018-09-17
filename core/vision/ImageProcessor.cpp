@@ -168,12 +168,13 @@ void ImageProcessor::detectGoal(std::map<uint8_t, std::vector<BlobRegion *>> &bl
   goal->visionElevation = cmatrix_.elevation(p);
   goal->visionDistance = cmatrix_.groundDistance(p);
 
-  if(goal->visionElevation > 500){
-    goal->seen = false;
-  } else {
-    goal->seen = true;
-  }
-
+  goal->seen = true;
+//  if(goal->visionElevation > 500){
+//    goal->seen = false;
+//  } else {
+//    goal->seen = true;
+//  }
+//
   goal->fromTopCamera = camera_ == Camera::TOP;
 }
 
@@ -192,7 +193,7 @@ void ImageProcessor::detectBall(std::map<uint8_t, std::vector<BlobRegion *>> &bl
   ball->visionElevation = cmatrix_.elevation(p);
   ball->visionDistance = cmatrix_.groundDistance(p);
 
-  printf("visionDistance: %f\n", ball->visionDistance);
+  // printf("visionDistance: %f\n", ball->visionDistance);
 
     // TODO: Get elevation thresholds
 //  if(ball->visionElevation > 100){
@@ -225,11 +226,11 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
             radius = std::max(blob->maxx - blob->minx + hstep, blob->maxy - blob->miny + vstep) / 2;
             // TODO: Get thresholds for correct ball radius
             //       Fix these conditions for far distances, overlay flickers
-            printf("aspect ratio: %lf\n", std::abs((float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)));
+            // printf("aspect ratio: %lf\n", std::abs((float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)));
             if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
                     ((radius > 1) && (radius < 100)) && (blob->density > 0.5)){
-                printf("centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf\n",
-                        blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density);
+//                printf("BALL: centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf\n",
+//                        blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density);
                 return true;
 
             }
@@ -246,12 +247,13 @@ bool ImageProcessor::findGoal(std::map<uint8_t, std::vector<BlobRegion *>> &blob
     for (int i = 0; i < blue_blobs->size(); i++) {
         BlobRegion *blob = (*blue_blobs)[i];
         // TODO: more heuristics here?
-        if (camera_ == Camera::TOP && blob->blobSize > 500){
+        if (camera_ == Camera::TOP && blob->blobSize > 5000){
             imageX = blob->centerx;
             imageY = blob->centery;
-            if (std::abs(1.7 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy - blob->miny)) < 0.40){
-                //                  printf("centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n",
-                //                      blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color);
+            //printf("aspect ratio: %lf\n", std::abs((float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)));
+            if (std::abs(1.7 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy - blob->miny)) < 0.80){
+                printf("GOAL: centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n",
+                        blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color);
                 return true;
 
             }
