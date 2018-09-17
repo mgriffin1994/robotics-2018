@@ -236,8 +236,8 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
             //imageX = blob->centerx;
             //imageY = blob->centery;
 
-            imageX = (blob->maxx - blob->minx + hstep) / 2; //TODO If still too far to the bottom right, remove hstep and vstep
-            imageY = (blob->maxy - blob->miny + vstep) / 2;
+            imageX = (blob->maxx + blob->minx) / 2; //TODO If still too far to the bottom right, remove hstep and vstep
+            imageY = (blob->maxy + blob->miny) / 2;
 
 
             // TODO: Why +hstep +vstep?
@@ -255,10 +255,12 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
 
             //if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
             //        ((radius > 1) && (radius < 100)) && (blob->density > 0.5)){
+//            if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
+//                    ((radius > 1) && (radius < 100)) && (blob->density > 0.5 && tilt_angle < 1.5)){
             if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
-                    ((radius > 1) && (radius < 100)) && (blob->density > 0.5 && tilt_angle < 1.5)){
-                printf("centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf\n",
-                        blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density);
+                    ((radius > 1) && (radius < 100)) && (blob->density > 0.5)){
+                printf("BALL: imageX %d, imageY %d, centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf\n",
+                        imageX, imageY, blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density);
                 return true;
  
             } //else if doesn't reach density and aspect ratio constraints may be occluded (can deal with later)
@@ -434,7 +436,7 @@ void ImageProcessor::findBlob(std::map<uint8_t, std::vector<BlobRegion *>> &blob
                 blob_ptr->miny = MIN(blob_ptr->miny, run_ptr->row);
                 blob_ptr->maxy = MAX(blob_ptr->maxy, run_ptr->row);
                 blob_ptr->centerx += (int) ((((run_ptr->start + run_ptr->end) / 2) - blob_ptr->centerx + hstep) / blob_ptr->numRuns);
-                blob_ptr->centery += (int) ((run_ptr->row - blob_ptr->centery + hstep) / blob_ptr->numRuns);
+                blob_ptr->centery += (int) ((run_ptr->row - blob_ptr->centery + vstep) / blob_ptr->numRuns);
                 blob_ptr->numRuns += 1;
                 blob_ptr->numPixels += (run_ptr->end - run_ptr->start) * vstep;
                 // TODO: Why +hstep +vstep?
