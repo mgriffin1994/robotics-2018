@@ -50,41 +50,33 @@ void BeaconDetector::findBeacon(std::map<uint8_t, std::vector<BlobRegion *>> &bl
                     if((color1 == c_BLUE && color2 == c_YELLOW) || (color2 == c_BLUE && color1 == c_YELLOW)){
                       y_thresh = 150 + 10; //+ 10 for some wiggle room
                     }
-                    if((white_blob->blobSize > 10) && checkNearBeacon(color2_blob, white_blob, 20, y_thresh)){
+                    if((white_blob->blobSize > 10) && checkNearBeacon(color2_blob, white_blob, 50, y_thresh)){
 
                         //TODO change these coordinates for the beacon
                         //get the color1_blob or color2_blob with the better aspect ratio (1 to 1) and use it's width (and calculate the correct height)
-                        float aspect_ratio1_close = std::abs(1.0 - (float)(color1_blob->maxx - color1_blob->minx) / (float)(color1_blob->maxy - color1_blob->miny)) < 0.2;           
-                        float aspect_ratio2_close = std::abs(1.0 - (float)(color2_blob->maxx - color2_blob->minx) / (float)(color2_blob->maxy - color2_blob->miny)) < 0.2;   
-                        
-                        int minx, maxx, miny, maxy;
-                        if(aspect_ratio1_close && !aspect_ratio2_close){
-                          
-                          minx = color1_blob->minx;
-                          maxx = color1_blob->maxx;
-                          miny = color1_blob->miny;
-                          maxy = color1_blob->miny + 2*(color1_blob->maxy - color1_blob->miny);
 
-                        } else if (!aspect_ratio1_close && aspect_ratio2_close){
+                        int min_width = MIN(color1_blob->maxx - color1_blob->minx, color2_blob->maxx - color2_blob->minx);
+                        int min_height = MIN(color1_blob->maxy - color1_blob->miny, color2_blob->maxy - color2_blob->miny);
+                        int minx, miny, maxx, maxy;
 
-                          minx = color2_blob->minx;
-                          maxx = color2_blob->maxx;
-                          maxy = color2_blob->maxy;
-                          miny = color2_blob->maxy - 2*(color1_blob->maxy - color1_blob->miny);
-
-                        } else if (aspect_ratio1_close && aspect_ratio2_close){
-
-                          minx = color1_blob->minx;
-                          maxx = color1_blob->maxx;
-                          maxy = color2_blob->maxy;
-                          miny = color1_blob->miny;
-
+                        if (min_width == (color1_blob->maxx - color1_blob->minx)) {
+                            minx = color1_blob->minx;
+                            maxx = color1_blob->maxx;
                         } else {
-                          return;
+                            minx = color2_blob->minx;
+                            maxx = color2_blob->maxx;
+                        }
+
+                        if (min_height == (color1_blob->maxy - color1_blob->miny)) {
+                            miny = color1_blob->miny;
+                            maxy = miny + 2* min_height;
+                        } else {
+                            miny = color2_blob->miny;
+                            maxy = maxy - 2* min_height;
                         }
 
                         coordinates = {minx, miny, maxx, maxy};
-                        printf("coord: %d, %d, %d, %d\n", coordinates[0], coordinates[1], coordinates[2], coordinates[3]);
+                        printf("coord: %d, %d, %d, %d\n", minx, miny, maxx, maxy);
                         return;
                     }
                   }
