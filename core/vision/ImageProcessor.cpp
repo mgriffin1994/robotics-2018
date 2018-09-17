@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <math.h> 
 
 ImageProcessor::ImageProcessor(VisionBlocks& vblocks, const ImageParams& iparams, Camera::Type camera) :
   vblocks_(vblocks), iparams_(iparams), camera_(camera), cmatrix_(iparams_, camera)
@@ -143,11 +144,17 @@ void ImageProcessor::processFrame(){
   blobs.clear();
 }
 
+//TODO make sure have similiar widths as well?
 bool checkNearBeacon(BlobRegion *blob1, BlobRegion *blob2, int thresholdx, int thresholdy) {
     int hor_dist = std::abs(blob1->centerx - blob2->centerx);
     int vert_dist = blob2->centery - blob1->centery; // Not abs because direction matters
 
-    if ((hor_dist < thresholdx) && (vert_dist > 0) && (vert_dist < thresholdy)) {
+    int right_diff = std::abs(blob1->maxx - blob2->maxx);
+    int left_diff = std::abs(blob1->minx - blob2->minx);
+    int middle_diff = std::abs(blob1->maxy - blob2->miny);  
+
+    if ((hor_dist < thresholdx) && (vert_dist > 0) && (vert_dist < thresholdy) && (right_diff < 10) && (left_diff < 10) && (middle_diff < 5)) {
+    //if ((hor_dist < thresholdx) && (vert_dist > 0) && (vert_dist < thresholdy)) {
         return true;
     } 
 
@@ -168,13 +175,14 @@ void ImageProcessor::detectGoal(std::map<uint8_t, std::vector<BlobRegion *>> &bl
   goal->visionElevation = cmatrix_.elevation(p);
   goal->visionDistance = cmatrix_.groundDistance(p);
 
+ // TODO: Get elevation thresholds
   goal->seen = true;
-//  if(goal->visionElevation > 500){
-//    goal->seen = false;
-//  } else {
-//    goal->seen = true;
-//  }
-//
+  //if(goal->visionElevation > 500){
+  //  goal->seen = false;
+  //} else {
+  //  goal->seen = true;
+  //}
+
   goal->fromTopCamera = camera_ == Camera::TOP;
 }
 
@@ -209,6 +217,11 @@ bool compareBlobs(const BlobRegion *a, const BlobRegion *b){
 	return a->blobSize > b->blobSize;
 }
 
+//if ball to far away, aspect ratio either below 1 or like 5 or 6 (issue with blob creation? some kind of check?)
+//  probably issue with only detecting the wider runs and not the thin runs on top (possibly issue with removing those 1 and 2 lenght runs below)
+// 
+
+
 // TODO: Create lookup table for blobsize and visionDistance to reliably draw overlay
 bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, int& imageX, int& imageY, int& radius) {
     imageX = imageY = radius = 0;
@@ -220,20 +233,35 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
         // TODO: more heuristics here?
         if (((camera_ == Camera::TOP) && (blob->blobSize > 50)) || 
                 ((camera_ != Camera::TOP) && (blob->blobSize > 1000))) {
-            imageX = blob->centerx;
-            imageY = blob->centery;
+            //imageX = blob->centerx;
+            //imageY = blob->centery;
+
+            imageX = (blob->maxx - blob->minx + hstep) / 2; //TODO If still too far to the bottom right, remove hstep and vstep
+            imageY = (blob->maxy - blob->miny + vstep) / 2;
+
+
             // TODO: Why +hstep +vstep?
             radius = std::max(blob->maxx - blob->minx + hstep, blob->maxy - blob->miny + vstep) / 2;
+
+            //TODO add tilt-angle test to see if ball not floating (should help with spurious arm and leg detections)
             // TODO: Get thresholds for correct ball radius
             //       Fix these conditions for far distances, overlay flickers
-            // printf("aspect ratio: %lf\n", std::abs((float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)));
-            if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
-                    ((radius > 1) && (radius < 100)) && (blob->density > 0.5)){
-//                printf("BALL: centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf\n",
-//                        blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density);
-                return true;
+            printf("aspect ratio: %lf\n", std::abs((float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)));
+            
 
-            }
+            // float focal_pix_constant 72.0 * 2.18; //default values correct?
+            // float robo_cam_tilt = vblocks_.joint->getJointValue(HeadPan);
+            // float tilt_angle = (atan((float)(iparams_.height / 2 - imageY) / focal_pix_constant) + robo_cam_tilt) * 180.0 / M_PI;
+
+            //if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
+            //        ((radius > 1) && (radius < 100)) && (blob->density > 0.5)){
+            if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
+                    ((radius > 1) && (radius < 100)) && (blob->density > 0.5 && tilt_angle < 1.5)){
+                printf("centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf\n",
+                        blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density);
+                return true;
+ 
+            } //else if doesn't reach density and aspect ratio constraints may be occluded (can deal with later)
         } else {
             return false;
         }
@@ -366,12 +394,12 @@ void ImageProcessor::findBlob(std::map<uint8_t, std::vector<BlobRegion *>> &blob
         for(int j=0; j < all_runs[i].size(); j++){
             Run *run_ptr = all_runs[i][j];
 
-            if(run_ptr->end - run_ptr->start + hstep <= 2*hstep){
+            //if(run_ptr->end - run_ptr->start + hstep <= 2*hstep){
               //if very short run don't use it to create new blob or adjust statistics of existing blobs
               //should reduce the impact of noise and create more accurate blobs
-              continue;
+            //  continue;
 
-            }
+            //}
 
             //create blobs whenever encouter root node or any of it's children
             Run *parent_ptr = run_ptr->lead_parent;
