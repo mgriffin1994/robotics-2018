@@ -8,6 +8,11 @@ using namespace Eigen;
 BeaconDetector::BeaconDetector(DETECTOR_DECLARE_ARGS) : DETECTOR_INITIALIZE {
 }
 
+
+
+
+
+
 void BeaconDetector::findBeacon(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, WorldObjectType beacon, std::vector<int> &coordinates) {
   static map<WorldObjectType, vector<uint8_t>> colors = {
     { WO_BEACON_YELLOW_BLUE, {c_YELLOW, c_BLUE} },
@@ -23,6 +28,7 @@ void BeaconDetector::findBeacon(std::map<uint8_t, std::vector<BlobRegion *>> &bl
   uint8_t color2 = colors[beacon][1];
   std::vector<BlobRegion *> *color1_blobs = &blobs[color1];
   std::vector<BlobRegion *> *color2_blobs = &blobs[color2];
+  std::vector<BlobRegion *> *white_blobs = &blobs[c_WHITE];
 
   // TODO:
   //aspect ratio to distinguish goal from beacon blue 
@@ -34,17 +40,57 @@ void BeaconDetector::findBeacon(std::map<uint8_t, std::vector<BlobRegion *>> &bl
 
   for (int i = 0; i < color1_blobs->size(); i++) {
       BlobRegion *color1_blob = (*color1_blobs)[i];
-      if (color1_blob->blobSize > 0) {
+      if (color1_blob->blobSize > 10) {
           for (int j = 0; j < color2_blobs->size(); j++) {
               BlobRegion * color2_blob = (*color2_blobs)[j];
-              // TODO: Check white below and reasonable height
-              if ((color2_blob->blobSize > 0) && checkNearBeacon(color1_blob, color2_blob, 20, 100)) {
-                  coordinates = {color1_blob->minx, color1_blob->miny, color2_blob->maxx, color2_blob->maxy};
-                  printf("coord: %d, %d, %d, %d\n", coordinates[0], coordinates[1], coordinates[2], coordinates[3]);
-                  return;
+              if ((color2_blob->blobSize > 10) && checkNearBeacon(color1_blob, color2_blob, 20, 100 + 10)) {
+                  for (int k = 0; k < white_blobs->size(); k++){
+                    BlobRegion *white_blob = (*white_blobs)[k];
+                    int y_thresh = 100 + 10; //+ 10 for some wiggle room
+                    if((color1 == c_BLUE && color2 == c_YELLOW) || (color2 == c_BLUE && color1 == c_YELLOW)){
+                      y_thresh = 150 + 10; //+ 10 for some wiggle room
+                    }
+                    if((white_blob->blobSize > 10) && checkNearBeacon(color2_blob, white_blob, 20, y_thresh)){
+
+                        //TODO change these coordinates for the beacon
+                        //get the color1_blob or color2_blob with the better aspect ratio (1 to 1) and use it's width (and calculate the correct height)
+                        float aspect_ratio1_close = std::abs(1.0 - (float)(color1_blob->maxx - color1_blob->minx) / (float)(color1_blob->maxy - color1_blob->miny)) < 0.2;           
+                        float aspect_ratio2_close = std::abs(1.0 - (float)(color2_blob->maxx - color2_blob->minx) / (float)(color2_blob->maxy - color2_blob->miny)) < 0.2;   
+                        
+                        int minx, maxx, miny, maxy;
+                        if(aspect_ratio1_close && !aspect_ratio2_close){
+                          
+                          minx = color1_blob->minx;
+                          maxx = color1_blob->maxx;
+                          miny = color1_blob->miny;
+                          maxy = color1_blob->miny + 2*(color1_blob->maxy - color1_blob->miny);
+
+                        } else if (!aspect_ratio1_close && aspect_ratio2_close){
+
+                          minx = color2_blob->minx;
+                          maxx = color2_blob->maxx;
+                          maxy = color2_blob->maxy;
+                          miny = color2_blob->maxy - 2*(color1_blob->maxy - color1_blob->miny);
+
+                        } else if (aspect_ratio1_close && aspect_ratio2_close){
+
+                          minx = color1_blob->minx;
+                          maxx = color1_blob->maxx;
+                          maxy = color2_blob->maxy;
+                          miny = color1_blob->miny;
+
+                        } else {
+                          return;
+                        }
+
+                        coordinates = {minx, miny, maxx, maxy};
+                        printf("coord: %d, %d, %d, %d\n", coordinates[0], coordinates[1], coordinates[2], coordinates[3]);
+                        return;
+                    }
+                  }
               }
           }
-      } 
+      }
   }
 }
 
