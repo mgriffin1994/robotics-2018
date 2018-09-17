@@ -13,6 +13,32 @@
 #include <math/Pose3D.h>
 #include <vision/structures/VisionParams.h>
 
+typedef struct Run {
+    Run* lead_parent;
+    int start;
+    int end;
+    int row;
+    uint8_t color;
+    std::vector<Run *> possible_parents;
+    int blobnum;
+} Run;
+
+typedef struct BlobRegion {
+    int centerx;
+    int centery;
+    int minx;
+    int miny;
+    int maxx;
+    int maxy;
+    int numRuns;
+    int blobSize; // Actually the bounding box size
+    int numPixels; // Actually the number of pixels in all runs of this blob
+    float density;
+    uint8_t color;
+} BlobRegion;
+
+bool checkNearBeacon(BlobRegion* blob1, BlobRegion* blob2, int thresholdx, int thresholdy);
+
 class BallDetector;
 class Classifier;
 class BeaconDetector;
@@ -20,7 +46,7 @@ class BeaconDetector;
 /// @ingroup vision
 class ImageProcessor {
   public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW  
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     ImageProcessor(VisionBlocks& vblocks, const ImageParams& iparams, Camera::Type camera);
     ~ImageProcessor();
     void processFrame();
@@ -42,8 +68,13 @@ class ImageProcessor {
     std::vector<BallCandidate*> getBallCandidates();
     BallCandidate* getBestBallCandidate();
     bool isImageLoaded();
-    void detectBall();
-    void findBall(int& imageX, int& imageY);
+    
+    void detectBall(std::map<uint8_t, std::vector<BlobRegion *>> &blobs);
+    void detectGoal(std::map<uint8_t, std::vector<BlobRegion *>> &blobs);
+    bool findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, int& imageX, int& imageY, int& radius);
+    bool findGoal(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, int& imageX, int& imageY);
+    void findBlob(std::map<uint8_t, std::vector<BlobRegion *>> &blobs);
+
   private:
     int getTeamColor();
     double getCurrentTime();
@@ -52,7 +83,7 @@ class ImageProcessor {
     const ImageParams& iparams_;
     Camera::Type camera_;
     CameraMatrix cmatrix_;
-    
+
     VisionParams vparams_;
     unsigned char* color_table_;
     TextLogger* textlogger;
@@ -60,7 +91,7 @@ class ImageProcessor {
     float getHeadPan() const;
     float getHeadTilt() const;
     float getHeadChange() const;
-    
+
     std::unique_ptr<RobotCalibration> calibration_;
     bool enableCalibration_;
 
