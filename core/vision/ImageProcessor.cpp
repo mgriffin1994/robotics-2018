@@ -130,7 +130,7 @@ void ImageProcessor::processFrame(){
   findBlob(blobs);
   detectBall(blobs);
   detectGoal(blobs);
-  beacon_detector_->findBeacons(blobs);
+  beacon_detector_->findBeacons(blobs, horizon);
 
 
   std::map<uint8_t, std::vector<BlobRegion *>>::iterator it;
@@ -144,8 +144,7 @@ void ImageProcessor::processFrame(){
   blobs.clear();
 }
 
-//TODO make sure have similiar widths as well?
-bool checkNearBeacon(BlobRegion *blob1, BlobRegion *blob2, int thresholdx, int thresholdy) {
+bool checkNearBeacon(BlobRegion *blob1, BlobRegion *blob2, int thresholdx, int thresholdy, int right_threshold, int left_threshold) {
     int hor_dist = std::abs(blob1->centerx - blob2->centerx);
     int vert_dist = blob2->centery - blob1->centery; // Not abs because direction matters
 
@@ -153,7 +152,8 @@ bool checkNearBeacon(BlobRegion *blob1, BlobRegion *blob2, int thresholdx, int t
     int left_diff = std::abs(blob1->minx - blob2->minx);
     int middle_diff = std::abs(blob1->maxy - blob2->miny);  
 
-    if ((hor_dist < thresholdx) && (vert_dist > 0) && (vert_dist < thresholdy) && ((right_diff < 32) || (left_diff < 32)) && (middle_diff < 16)) {
+    if ((hor_dist < thresholdx) && (vert_dist > 0) && (vert_dist < thresholdy) && (right_diff < right_threshold) 
+        && (left_diff < left_threshold) && (middle_diff < 16)) {
     //if ((hor_dist < thresholdx) && (vert_dist > 0) && (vert_dist < thresholdy)) {
         return true;
     } 
@@ -174,7 +174,7 @@ void ImageProcessor::detectGoal(std::map<uint8_t, std::vector<BlobRegion *>> &bl
   goal->visionBearing = cmatrix_.bearing(p);
   goal->visionElevation = cmatrix_.elevation(p);
   goal->visionDistance = cmatrix_.groundDistance(p);
-  printf("GOAL: elevation: %lf, distance: %lf\n", goal->visionElevation, goal->visionDistance);
+  // printf("GOAL: elevation: %lf, distance: %lf\n", goal->visionElevation, goal->visionDistance);
 
  // TODO: Get elevation thresholds
   goal->seen = true;
@@ -201,7 +201,7 @@ void ImageProcessor::detectBall(std::map<uint8_t, std::vector<BlobRegion *>> &bl
   ball->visionBearing = cmatrix_.bearing(p);
   ball->visionElevation = cmatrix_.elevation(p);
   ball->visionDistance = cmatrix_.groundDistance(p);
-  printf("BALL: elevation: %lf, distance: %lf\n", ball->visionElevation, ball->visionDistance);
+  // printf("BALL: elevation: %lf, distance: %lf\n", ball->visionElevation, ball->visionDistance);
 
   // printf("visionDistance: %f\n", ball->visionDistance);
 
@@ -233,17 +233,20 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
     for (int i = 0; i < orange_blobs->size(); i++) {
         BlobRegion *blob = (*orange_blobs)[i];
         // TODO: more heuristics here?
-        if (((camera_ == Camera::TOP) && (blob->blobSize > 50)) || 
+        HorizonLine horizon = vblocks_.robot_vision->horizon;
+        imageX = (blob->maxx + blob->minx) / 2; //TODO If still too far to the bottom right, remove hstep and vstep
+        imageY = (blob->maxy + blob->miny) / 2;
+
+        if (((camera_ == Camera::TOP) && (blob->blobSize > 50) && (blob->blobSize < 1500) && (horizon.isAbovePoint(imageX, imageY))) || 
                 ((camera_ != Camera::TOP) && (blob->blobSize > 1000))) {
             //imageX = blob->centerx;
             //imageY = blob->centery;
-
-            imageX = (blob->maxx + blob->minx) / 2; //TODO If still too far to the bottom right, remove hstep and vstep
-            imageY = (blob->maxy + blob->miny) / 2;
-
+            
 
             // TODO: Why +hstep +vstep?
             radius = std::max(blob->maxx - blob->minx + hstep, blob->maxy - blob->miny + vstep) / 2;
+
+
 
             //TODO add tilt-angle test to see if ball not floating (should help with spurious arm and leg detections)
             // TODO: Get thresholds for correct ball radius
@@ -259,13 +262,19 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
             //        ((radius > 1) && (radius < 100)) && (blob->density > 0.5)){
 //            if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
 //                    ((radius > 1) && (radius < 100)) && (blob->density > 0.5 && tilt_angle < 1.5)){
-            if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
-                    ((radius > 1) && (radius < 100)) && (blob->density > 0.5)){
-                printf("BALL: imageX %d, imageY %d, centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf\n",
-                        imageX, imageY, blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density);
+            if ((std::abs(1.0 - (float)(2*(hstep-1) + blob->maxx - blob->minx) / (float)(2*(vstep-1) + blob->maxy-blob->miny)) < 0.7) &&
+                    ((radius > 1) && (radius < 150)) && (blob->density > 0.5)){
+                 // printf("BALL found: imageX %d, imageY %d, centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf, aspect_ratio = %lf\n",
+                    //     imageX, imageY, blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density, std::abs(1.0 - (float)(2*(hstep-1) + blob->maxx - blob->minx) / (float)(2*(vstep-1) + blob->maxy-blob->miny)));
+
                 return true;
  
             } //else if doesn't reach density and aspect ratio constraints may be occluded (can deal with later)
+            else {
+              // printf("BALL almost found: imageX %d, imageY %d, centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf, aspect_ratio = %lf\n",
+                 //        imageX, imageY, blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density, std::abs(1.0 - (float)(2*(hstep-1) + blob->maxx - blob->minx) / (float)(2*(vstep-1) + blob->maxy-blob->miny)));
+
+            }
         } else {
             return false;
         }
@@ -280,13 +289,16 @@ bool ImageProcessor::findGoal(std::map<uint8_t, std::vector<BlobRegion *>> &blob
     for (int i = 0; i < blue_blobs->size(); i++) {
         BlobRegion *blob = (*blue_blobs)[i];
         // TODO: more heuristics here?
-        if (camera_ == Camera::TOP && blob->blobSize > 5000){
-            imageX = blob->centerx;
-            imageY = blob->centery;
+        imageX = (blob->maxx + blob->minx) / 2; //TODO If still too far to the bottom right, remove hstep and vstep
+        imageY = (blob->maxy + blob->miny) / 2;
+        if ((camera_ == Camera::TOP) && (blob->blobSize > 5000)) {
             //printf("aspect ratio: %lf\n", std::abs((float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)));
+
+            //printf("GOAL almost found: centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n",
+             //           blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color);
             if (std::abs(1.7 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy - blob->miny)) < 0.80){
-                printf("GOAL: centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n",
-                        blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color);
+                // printf("GOAL: centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n",
+                  //      blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color);
                 return true;
 
             }

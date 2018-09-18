@@ -251,8 +251,7 @@ void VisionWindow::drawGoal(ImageWidget* image) {
   int x1 = goal.imageCenterX - width / 2;
   
   // Draw top
-  int ty1 = goal.imageCenterY - height;
-  printf("width = %d, height = %d, x1 = %d, ty1 = %d\n", width, height, x1, ty1);
+  int ty1 = goal.imageCenterY - height / 2;
   QPainterPath path;
   path.addRoundedRect(QRect(x1, ty1, width, height), 5, 5);
   painter.setPen(pen);

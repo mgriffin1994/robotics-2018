@@ -16,11 +16,8 @@ from memory import joint_angles
 from task import Task
 
 
-time_delay = 1.0
+time_delay = 2.0
 eps = 0.01
-
-
-
 
 class Ready(Task):
         def run(self):
@@ -37,18 +34,18 @@ class Playing(LoopingStateMachine):
 
     class Scan(Node):
         def run(self):
-            #ball = mem_objects.world_objects[core.WO_BALL]
-            #if ball.seen:
-            #    self.finish()
-            #else:
-            pan = core.joint_values[core.HeadPan]
-            if abs(pan - math.pi / 3) < eps: #if within eps from full right, turn left
-                commands.setHeadPan(-math.pi/3, time_delay)
-            elif abs(pan + math.pi / 3) < eps: #if within eps from full left, turn right
-                commands.setHeadPan(math.pi/3, time_delay)
-            print("=======================================")
-            print(pan)
-            print("=======================================")
+            ball = mem_objects.world_objects[core.WO_BALL]
+            if ball.seen:
+                self.finish()
+            else:
+                pan = core.joint_values[core.HeadPan]
+                if abs(pan - math.pi / 3) < eps: #if within eps from full right, turn left
+                    commands.setHeadPan(-math.pi/3, time_delay)
+                elif abs(pan + math.pi / 3) < eps: #if within eps from full left, turn right
+                    commands.setHeadPan(math.pi/3, time_delay)
+                print("=======================================")
+                print(pan)
+                print("=======================================")
 
     class TurnTowardBall(Node):
         def run(self):
@@ -71,13 +68,9 @@ class Playing(LoopingStateMachine):
             #    print("=======================================")
             #
 
-
-    
-
     def setup(self):
         #ball_turn = TurnTowardBall()
         scan = self.Scan()
 
         self.add_transition(scan, T(time_delay), scan)
-
 

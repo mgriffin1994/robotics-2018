@@ -2,6 +2,7 @@
 
 #include <vision/ObjectDetector.h>
 #include <vision/ImageProcessor.h>
+#include <vision/VisionBlocks.h>
 #include <vector>
 
 class TextLogger;
@@ -21,7 +22,7 @@ class BeaconDetector : public ObjectDetector {
   BeaconDetector(DETECTOR_DECLARE_ARGS);
   void init(TextLogger* tl){ textlogger = tl; }
   void findBeacon(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, WorldObjectType beacon, std::vector<int> &coordinates);
-  void findBeacons(std::map<uint8_t, std::vector<BlobRegion *>> &blobs);
+  void findBeacons(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, HorizonLine &horizon);
  private:
   TextLogger* textlogger;
 };
