@@ -9,7 +9,7 @@ import pose
 import cfgstiff
 import commands
 import mem_objects
-from state_machine import Node, S, T, C, LoopingStateMachine
+from state_machine import Node, S, T, C, LoopingStateMachine, StateMachine
 import UTdebug
 
 
