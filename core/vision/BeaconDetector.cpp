@@ -130,8 +130,8 @@ void BeaconDetector::findBeacons(std::map<uint8_t, std::vector<BlobRegion *>> &b
           object.visionDistance = cmatrix_.groundDistance(position);
           object.visionBearing = cmatrix_.bearing(position);
           object.visionElevation = cmatrix_.elevation(position);
-          //printf("BEACON %s: centerx %d, centery %d, elevation: %lf, distance: %lf\n",
-          //        BEACON_NAME(beacon.first), object.imageCenterX, object.imageCenterY, object.visionElevation, object.visionDistance);
+          printf("BEACON %s: centerx %d, centery %d, elevation: %lf, distance: %lf\n",
+                  BEACON_NAME(beacon.first), object.imageCenterX, object.imageCenterY, object.visionElevation, object.visionDistance);
           object.seen = true;
           object.fromTopCamera = camera_ == Camera::TOP;
           tlog(30, "saw %s at (%i,%i) with calculated distance %2.4f", getName(beacon.first), object.imageCenterX, object.imageCenterY, object.visionDistance);
