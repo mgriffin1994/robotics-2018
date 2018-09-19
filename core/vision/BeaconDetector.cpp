@@ -77,13 +77,13 @@ void BeaconDetector::findBeacon(std::map<uint8_t, std::vector<BlobRegion *>> &bl
                           }
 
                           coordinates = {minx, miny, maxx, maxy};
-                          printf("BEACON: Found beacon %s\n", BEACON_NAME(beacon));
-                          printf("BLOB1: centerX %d, centerY %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, density = %lf\n",
-                                  color1_blob->centerx, color1_blob->centery, color1_blob->minx, color1_blob->miny, color1_blob->maxx, color1_blob->maxy, 
-                                  color1_blob->numRuns, color1_blob->blobSize, color1_blob->color, color1_blob->density);
-                          printf("BLOB2: centerX %d, centerY %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, density = %lf\n",
-                                  color2_blob->centerx, color2_blob->centery, color2_blob->minx, color2_blob->miny, color2_blob->maxx, color2_blob->maxy, 
-                                  color2_blob->numRuns, color2_blob->blobSize, color2_blob->color, color2_blob->density);
+                          //printf("BEACON: Found beacon %s\n", BEACON_NAME(beacon));
+                          //printf("BLOB1: centerX %d, centerY %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, density = %lf\n",
+                          //        color1_blob->centerx, color1_blob->centery, color1_blob->minx, color1_blob->miny, color1_blob->maxx, color1_blob->maxy, 
+                          //        color1_blob->numRuns, color1_blob->blobSize, color1_blob->color, color1_blob->density);
+                          //printf("BLOB2: centerX %d, centerY %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, density = %lf\n",
+                          //        color2_blob->centerx, color2_blob->centery, color2_blob->minx, color2_blob->miny, color2_blob->maxx, color2_blob->maxy, 
+                          //        color2_blob->numRuns, color2_blob->blobSize, color2_blob->color, color2_blob->density);
                           return;
                       }
                   }
@@ -130,12 +130,12 @@ void BeaconDetector::findBeacons(std::map<uint8_t, std::vector<BlobRegion *>> &b
           object.visionDistance = cmatrix_.groundDistance(position);
           object.visionBearing = cmatrix_.bearing(position);
           object.visionElevation = cmatrix_.elevation(position);
-          printf("BEACON %s: centerx %d, centery %d, elevation: %lf, distance: %lf\n",
-                  BEACON_NAME(beacon.first), object.imageCenterX, object.imageCenterY, object.visionElevation, object.visionDistance);
+          //printf("BEACON %s: centerx %d, centery %d, elevation: %lf, distance: %lf\n",
+          //        BEACON_NAME(beacon.first), object.imageCenterX, object.imageCenterY, object.visionElevation, object.visionDistance);
           object.seen = true;
           object.fromTopCamera = camera_ == Camera::TOP;
           tlog(30, "saw %s at (%i,%i) with calculated distance %2.4f", getName(beacon.first), object.imageCenterX, object.imageCenterY, object.visionDistance);
       }
   }
-  printf("Found %d beacons\n", beacon_count);
+  //printf("Found %d beacons\n", beacon_count);
 }
