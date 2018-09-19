@@ -219,6 +219,10 @@ bool compareBlobs(const BlobRegion *a, const BlobRegion *b){
 	return a->blobSize > b->blobSize;
 }
 
+bool dense_sort(const BlobRegion *a, const BlobRegion *b){
+	return a->orange_density > b->orange_density;
+}
+
 //if ball to far away, aspect ratio either below 1 or like 5 or 6 (issue with blob creation? some kind of check?)
 //  probably issue with only detecting the wider runs and not the thin runs on top (possibly issue with removing those 1 and 2 lenght runs below)
 // 
@@ -230,6 +234,7 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
     int vstep = 1 << 1;
     int hstep = 1 << 2;
     std::vector<BlobRegion *> *orange_blobs = &blobs[c_ORANGE];
+    std::vector<BlobRegion *> dense_sort_blobs;
     for (int i = 0; i < orange_blobs->size(); i++) {
         BlobRegion *blob = (*orange_blobs)[i];
         // TODO: more heuristics here?
@@ -250,30 +255,33 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
 
             auto segImg = getSegImg();
             int height = blob->maxy - blob->miny;
-            int num_green = 0;
-            float green_density = 0;
+            int width = blob->maxx - blob->minx;
+            int num_orange = 0;
+            float orange_density = 0;
             uint8_t c;
             int startx, endx, starty, endy;
-            startx = (blob->minx / hstep) * hstep;
-            endx = (blob->maxx / hstep) * hstep;
-            starty = ((blob->maxy + height/2) / vstep) * vstep;
-            endy = MIN(((blob->maxy + 3*height/2) / vstep) * vstep, iparams_.height);
+            startx = ((blob->minx + width / 3) / hstep) * hstep;
+            endx = ((blob->maxx - width / 3) / hstep) * hstep;
+            starty = ((blob->miny + height / 3) / vstep) * vstep;
+            endy = ((blob->maxy - height / 3) / vstep) * vstep;
             
 
             for (int i = startx; i < endx; i += hstep){
                 for (int j = starty; j < endy; j += vstep){
                     c = segImg[j*iparams_.width + i];
-                    if(c == c_FIELD_GREEN){
-                        num_green += hstep * vstep;
+                    if(c == c_ORANGE){
+                        num_orange += hstep * vstep;
                     }
                 }
             }
 
-            if(endy == iparams_.height){green_density = 1.0;}
-            else{green_density =  ((float)num_green) / ((float)(height*(blob->maxx - blob->minx)) + 0.00001);}
+            if(endy == iparams_.height){orange_density = 1.0;}
+            else{orange_density =  ((float)num_orange) / ((float)(height*(blob->maxx - blob->minx)) / 9 + 0.00001);}
+
+            blob->orange_density = orange_density;
             
             //uint8_t c = segImg [y * iparams_.width + x]; //color at current step
-            //int num_green_below =
+            //int num_orange_below =
 
 
 
@@ -291,23 +299,34 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
             //        ((radius > 1) && (radius < 100)) && (blob->density > 0.5)){
 //            if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
 //                    ((radius > 1) && (radius < 100)) && (blob->density > 0.5 && tilt_angle < 1.5)){
-            if ((aspect_ratio > 0.7) && (aspect_ratio < 1.3) && ((radius > 1) && (radius < 150)) && (blob->density > 0.5) && (green_density > 0.5)){
-                 printf("BALL found: imageX %d, imageY %d, centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf, aspect_ratio = %lf, green_density = %lf, endy = %d\n", imageX, imageY, blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density, aspect_ratio, green_density, endy);
+            if ((aspect_ratio > 0.7) && (aspect_ratio < 1.3) && ((radius > 1) && (radius < 150)) && (blob->density > 0.5) && (orange_density > 0.5)){
+                 printf("BALL found: imageX %d, imageY %d, centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf, aspect_ratio = %lf, orange_density = %lf, endy = %d\n", imageX, imageY, blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density, aspect_ratio, orange_density, endy);
                  //printf("aspect ratio: %lf\n", aspect_ratio);
 
-                return true;
+                dense_sort_blobs.push_back(blob);
+                continue;
  
             } //else if doesn't reach density and aspect ratio constraints may be occluded (can deal with later)
             else {
 
                 //printf("NOT FOUND - green density: %lf", green_density);
-                printf("BALL NOT FOUND: imageX %d, imageY %d, centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf, aspect_ratio = %lf, green_density = %lf, endy = %d\n", imageX, imageY, blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density, std::abs((float)(2*(hstep-1) + blob->maxx - blob->minx) / (float)(2*(vstep-1) + blob->maxy-blob->miny)), green_density, endy);
+                //printf("BALL NOT FOUND: imageX %d, imageY %d, centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf, aspect_ratio = %lf, orange_density = %lf, endy = %d\n", imageX, imageY, blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density, std::abs((float)(2*(hstep-1) + blob->maxx - blob->minx) / (float)(2*(vstep-1) + blob->maxy-blob->miny)), orange_density, endy);
 
             }
-        } else {
-            return false;
-        }
+        } 
     }
+
+    std::sort(dense_sort_blobs.begin(), dense_sort_blobs.end(), dense_sort);
+
+    if (dense_sort_blobs.size() > 0) {
+        BlobRegion *blob = dense_sort_blobs[0];
+
+        imageX = (blob->maxx + blob->minx) / 2; //TODO If still too far to the bottom right, remove hstep and vstep
+        imageY = (blob->maxy + blob->miny) / 2;
+        radius = ((blob->maxx - blob->minx + hstep) + (blob->maxy - blob->miny + vstep)) / 4;
+        return true;
+    }
+
     return false;
 }
 

@@ -33,6 +33,7 @@ typedef struct BlobRegion {
     int numRuns;
     int blobSize; // Actually the bounding box size
     int numPixels; // Actually the number of pixels in all runs of this blob
+    float orange_density;
     float density;
     uint8_t color;
 } BlobRegion;
