@@ -29,13 +29,20 @@ void BeaconDetector::findBeacon(std::map<uint8_t, std::vector<BlobRegion *>> &bl
   for (int i = 0; i < color1_blobs->size(); i++) {
       BlobRegion *color1_blob = (*color1_blobs)[i];
       float color1_aspect = std::abs((float)(2*(hstep-1) + color1_blob->maxx - color1_blob->minx) / (float)(2*(vstep-1) + color1_blob->maxy-color1_blob->miny));
+
       if ((color1_blob->blobSize > 200) && (color1_blob->density > 0.6) && color1_aspect > 0.7 && color1_aspect < 1.3){
           for (int j = 0; j < color2_blobs->size(); j++) {
               BlobRegion * color2_blob = (*color2_blobs)[j];
               float color2_aspect = std::abs((float)(2*(hstep-1) + color2_blob->maxx - color2_blob->minx) / (float)(2*(vstep-1) + color2_blob->maxy-color2_blob->miny));
+
               if ((color2_blob->blobSize > 200) && checkNearBeacon(color1_blob, color2_blob, 20, 1000 + 200, 20, 20) && (color2_blob->density > 0.6) && color2_aspect > 0.7 && color2_aspect < 1.3) {
+                  int blob2_height = color2_blob->maxy - color2_blob->miny;
                   for (int k = 0; k < white_blobs->size(); k++) {
                       BlobRegion *white_blob = (*white_blobs)[k];
+                      int y_threshold = blob2_height + color2_blob->maxy;
+
+                      printf("y_threshold for white blob: %d\n", y_threshold);
+                      printf("white_blob->blobSize: %d, white_blob->centery: %d\n", white_blob->blobSize, white_blob->centerx);
                       if ((white_blob->blobSize > 200) && checkNearBeacon(color2_blob, white_blob, 100, 1000 + 200, 100, 100)) {
 
                           auto segImg = vblocks_.robot_vision->getSegImgTop();
