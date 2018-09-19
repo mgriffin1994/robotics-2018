@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
-#include <math.h> 
+#include <math.h>
 
 ImageProcessor::ImageProcessor(VisionBlocks& vblocks, const ImageParams& iparams, Camera::Type camera) :
   vblocks_(vblocks), iparams_(iparams), camera_(camera), cmatrix_(iparams_, camera)
@@ -150,13 +150,13 @@ bool checkNearBeacon(BlobRegion *blob1, BlobRegion *blob2, int thresholdx, int t
 
     int right_diff = std::abs(blob1->maxx - blob2->maxx);
     int left_diff = std::abs(blob1->minx - blob2->minx);
-    int middle_diff = std::abs(blob1->maxy - blob2->miny);  
+    int middle_diff = std::abs(blob1->maxy - blob2->miny);
 
-    if ((hor_dist < thresholdx) && (vert_dist > 0) && (vert_dist < thresholdy) && (right_diff < right_threshold) 
+    if ((hor_dist < thresholdx) && (vert_dist > 0) && (vert_dist < thresholdy) && (right_diff < right_threshold)
         && (left_diff < left_threshold) && (middle_diff < 16)) {
     //if ((hor_dist < thresholdx) && (vert_dist > 0) && (vert_dist < thresholdy)) {
         return true;
-    } 
+    }
 
     return false;
 }
@@ -176,14 +176,7 @@ void ImageProcessor::detectGoal(std::map<uint8_t, std::vector<BlobRegion *>> &bl
   goal->visionDistance = cmatrix_.groundDistance(p);
   // printf("GOAL: elevation: %lf, distance: %lf\n", goal->visionElevation, goal->visionDistance);
 
- // TODO: Get elevation thresholds
   goal->seen = true;
-  //if(goal->visionElevation > 500){
-  //  goal->seen = false;
-  //} else {
-  //  goal->seen = true;
-  //}
-
   goal->fromTopCamera = camera_ == Camera::TOP;
 }
 
@@ -205,12 +198,6 @@ void ImageProcessor::detectBall(std::map<uint8_t, std::vector<BlobRegion *>> &bl
 
   // printf("visionDistance: %f\n", ball->visionDistance);
 
-    // TODO: Get elevation thresholds
-//  if(ball->visionElevation > 100){
-//    ball->seen = false;
-//  } else {
-//    ball->seen = true;
-//  }  
   ball->seen = true;
   ball->fromTopCamera = camera_ == Camera::TOP;
 }
@@ -225,10 +212,9 @@ bool dense_sort(const BlobRegion *a, const BlobRegion *b){
 
 //if ball to far away, aspect ratio either below 1 or like 5 or 6 (issue with blob creation? some kind of check?)
 //  probably issue with only detecting the wider runs and not the thin runs on top (possibly issue with removing those 1 and 2 lenght runs below)
-// 
+//
 
 
-// TODO: Create lookup table for blobsize and visionDistance to reliably draw overlay
 bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, int& imageX, int& imageY, int& radius) {
     imageX = imageY = radius = 0;
     int vstep = 1 << 1;
@@ -237,18 +223,16 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
     std::vector<BlobRegion *> dense_sort_blobs;
     for (int i = 0; i < orange_blobs->size(); i++) {
         BlobRegion *blob = (*orange_blobs)[i];
-        // TODO: more heuristics here?
         HorizonLine horizon = vblocks_.robot_vision->horizon;
-        imageX = (blob->maxx + blob->minx) / 2; //TODO If still too far to the bottom right, remove hstep and vstep
+        imageX = (blob->maxx + blob->minx) / 2;
         imageY = (blob->maxy + blob->miny) / 2;
 
-        if (((camera_ == Camera::TOP) && (blob->blobSize > 50) && (blob->blobSize < 1500) && (horizon.isAbovePoint(imageX, imageY))) || 
+        if (((camera_ == Camera::TOP) && (blob->blobSize > 50) && (blob->blobSize < 1500) && (horizon.isAbovePoint(imageX, imageY))) ||
                 ((camera_ != Camera::TOP) && (blob->blobSize > 1000))) {
             //imageX = blob->centerx;
             //imageY = blob->centery;
-            
 
-            // TODO: Why +hstep +vstep?
+
             // radius = std::max(blob->maxx - blob->minx + hstep, blob->maxy - blob->miny + vstep) / 2;
             radius = ((blob->maxx - blob->minx + hstep) + (blob->maxy - blob->miny + vstep)) / 4;
             float aspect_ratio = std::abs((float)(2*(hstep-1) + blob->maxx - blob->minx) / (float)(2*(vstep-1) + blob->maxy-blob->miny));
@@ -264,7 +248,7 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
             endx = ((blob->maxx - width / 3) / hstep) * hstep;
             starty = ((blob->miny + height / 3) / vstep) * vstep;
             endy = ((blob->maxy - height / 3) / vstep) * vstep;
-            
+
 
             for (int i = startx; i < endx; i += hstep){
                 for (int j = starty; j < endy; j += vstep){
@@ -279,17 +263,14 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
             else{orange_density =  ((float)num_orange) / ((float)(height*(blob->maxx - blob->minx)) / 9 + 0.00001);}
 
             blob->orange_density = orange_density;
-            
+
             //uint8_t c = segImg [y * iparams_.width + x]; //color at current step
             //int num_orange_below =
 
-
-
             //TODO add tilt-angle test to see if ball not floating (should help with spurious arm and leg detections)
-            // TODO: Get thresholds for correct ball radius
             //       Fix these conditions for far distances, overlay flickers
             // printf("aspect ratio: %lf\n", std::abs((float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)));
-            
+
 
             // float focal_pix_constant 72.0 * 2.18; //default values correct?
             // float robo_cam_tilt = vblocks_.joint->getJointValue(HeadPan);
@@ -305,7 +286,7 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
 
                 dense_sort_blobs.push_back(blob);
                 continue;
- 
+
             } //else if doesn't reach density and aspect ratio constraints may be occluded (can deal with later)
             else {
 
@@ -313,7 +294,7 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
                 //printf("BALL NOT FOUND: imageX %d, imageY %d, centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf, aspect_ratio = %lf, orange_density = %lf, endy = %d\n", imageX, imageY, blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density, std::abs((float)(2*(hstep-1) + blob->maxx - blob->minx) / (float)(2*(vstep-1) + blob->maxy-blob->miny)), orange_density, endy);
 
             }
-        } 
+        }
     }
 
     std::sort(dense_sort_blobs.begin(), dense_sort_blobs.end(), dense_sort);
@@ -321,7 +302,7 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
     if (dense_sort_blobs.size() > 0) {
         BlobRegion *blob = dense_sort_blobs[0];
 
-        imageX = (blob->maxx + blob->minx) / 2; //TODO If still too far to the bottom right, remove hstep and vstep
+        imageX = (blob->maxx + blob->minx) / 2;
         imageY = (blob->maxy + blob->miny) / 2;
         radius = ((blob->maxx - blob->minx + hstep) + (blob->maxy - blob->miny + vstep)) / 4;
         return true;
@@ -330,14 +311,12 @@ bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blob
     return false;
 }
 
-// TODO: Check no yellow blobs below?
 bool ImageProcessor::findGoal(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, int& imageX, int& imageY) {
     imageX = imageY = 0;
     std::vector<BlobRegion *> *blue_blobs = &blobs[c_BLUE];
     for (int i = 0; i < blue_blobs->size(); i++) {
         BlobRegion *blob = (*blue_blobs)[i];
-        // TODO: more heuristics here?
-        imageX = (blob->maxx + blob->minx) / 2; //TODO If still too far to the bottom right, remove hstep and vstep
+        imageX = (blob->maxx + blob->minx) / 2;
         imageY = (blob->maxy + blob->miny) / 2;
         if ((camera_ == Camera::TOP) && (blob->blobSize > 5000)) {
             //printf("aspect ratio: %lf\n", std::abs((float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)));
@@ -379,12 +358,10 @@ void ImageProcessor::findBlob(std::map<uint8_t, std::vector<BlobRegion *>> &blob
 
             uint8_t c = segImg [y * iparams_.width + x]; //color at current step
             uint8_t old_col = segImg[y * iparams_.width + (x - hstep)]; //color at previous step
-            //TODO: We may need to change color table to better allow for shadows
-
 
             //detect a run whenever the color changes and when just finished a run of orange, blue, yellow, or pink color pixels
             if((old_col != c && (old_col == c_ORANGE || old_col == c_BLUE || old_col == c_YELLOW || old_col == c_PINK || old_col == c_WHITE))
-                    || (x == iparams_.width - hstep && (c == c_ORANGE || c == c_BLUE || c == c_YELLOW || c == c_PINK || c == c_WHITE))) { 
+                    || (x == iparams_.width - hstep && (c == c_ORANGE || c == c_BLUE || c == c_YELLOW || c == c_PINK || c == c_WHITE))) {
                  //x will never equal iparams_.width
                  //need to detect white too, since have to detect white for beacons (can't detect beacon if upside down so need to know where white blob is)
 
@@ -411,6 +388,8 @@ void ImageProcessor::findBlob(std::map<uint8_t, std::vector<BlobRegion *>> &blob
                         if(run_ptr->end < cur_run_ptr->start){
                           continue; //ignore runs that are entirely before this one
                         }
+                        // TODO: detect overlap for two pixels
+                        // TODO: bug - doesn't detect overlap if is wider on both ends
                         if(run_ptr->color == cur_run_ptr->color &&
                                 ((run_ptr->start >= cur_run_ptr->start && run_ptr->start <= cur_run_ptr->end)
                                     || (run_ptr->end >= cur_run_ptr->start && run_ptr->end <= cur_run_ptr->end))){
@@ -470,7 +449,6 @@ void ImageProcessor::findBlob(std::map<uint8_t, std::vector<BlobRegion *>> &blob
             Run *parent_ptr = run_ptr->lead_parent;
             Run *grand_parent_ptr = parent_ptr->lead_parent;
 
-            // TODO: Maybe add a sparsity calculation using the aggregate of run sizes?
             BlobRegion *blob_ptr;
             if(grand_parent_ptr->blobnum == -1){ //if my grandparent (root of this blob) hasn't been added yet, create a blob for it
                 blob_ptr = new BlobRegion(); //create new blob in here and not every time outside (was bug)
@@ -502,7 +480,6 @@ void ImageProcessor::findBlob(std::map<uint8_t, std::vector<BlobRegion *>> &blob
                 blob_ptr->centery += (int) ((run_ptr->row - blob_ptr->centery + vstep) / blob_ptr->numRuns);
                 blob_ptr->numRuns += 1;
                 blob_ptr->numPixels += (run_ptr->end - run_ptr->start + hstep) * vstep;
-                // TODO: Why +hstep +vstep?
                 blob_ptr->blobSize = (blob_ptr->maxx - blob_ptr->minx + hstep) * (blob_ptr->maxy - blob_ptr->miny + vstep); //actual size in pixels in original image
             }
         }

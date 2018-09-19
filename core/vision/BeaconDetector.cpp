@@ -8,11 +8,6 @@ using namespace Eigen;
 BeaconDetector::BeaconDetector(DETECTOR_DECLARE_ARGS) : DETECTOR_INITIALIZE {
 }
 
-
-
-
-
-
 void BeaconDetector::findBeacon(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, WorldObjectType beacon, std::vector<int> &coordinates) {
   static map<WorldObjectType, vector<uint8_t>> colors = {
     { WO_BEACON_YELLOW_BLUE, {c_YELLOW, c_BLUE} },
@@ -23,7 +18,6 @@ void BeaconDetector::findBeacon(std::map<uint8_t, std::vector<BlobRegion *>> &bl
     { WO_BEACON_BLUE_YELLOW, {c_BLUE, c_YELLOW} }
   };
 
-  // TODO: Add white check below
   int vstep = 1 << 1;
   int hstep = 1 << 2;
   uint8_t color1 = colors[beacon][0];
@@ -32,29 +26,44 @@ void BeaconDetector::findBeacon(std::map<uint8_t, std::vector<BlobRegion *>> &bl
   std::vector<BlobRegion *> *color2_blobs = &blobs[color2];
   std::vector<BlobRegion *> *white_blobs = &blobs[c_WHITE];
 
-  // TODO:
-  //aspect ratio to distinguish goal from beacon blue 
-  //(could also use ratio of first largest blue to second largest blue and if way higher than 1 first one is goal)
-  //ignore white and make sure high enough
-  //trim blobs list after finding them to only include blobs above a certain size also
-  //then o(n*6) for each beacon look across all found blobs (using n*6 table of blobs) for one with similar x value, size, and the correct higher/lower y value
-  //and then use that combo to find the center of the corresponding beacon
-
   for (int i = 0; i < color1_blobs->size(); i++) {
       BlobRegion *color1_blob = (*color1_blobs)[i];
-      float color1_aspect = 1.0 - std::abs((color1_blob->maxx - color1_blob->minx + hstep) / (color1_blob->maxy - color1_blob->miny + vstep));
-      if ((color1_blob->blobSize > 200) && (color1_blob->density > 0.6)){
+      float color1_aspect = std::abs((float)(2*(hstep-1) + color1_blob->maxx - color1_blob->minx) / (float)(2*(vstep-1) + color1_blob->maxy-color1_blob->miny));
+      if ((color1_blob->blobSize > 200) && (color1_blob->density > 0.6) && color1_aspect > 0.7 && color1_aspect < 1.3){
           for (int j = 0; j < color2_blobs->size(); j++) {
               BlobRegion * color2_blob = (*color2_blobs)[j];
-              float color2_aspect = 1.0 - std::abs((color2_blob->maxx - color2_blob->minx + hstep) / (color2_blob->maxy - color2_blob->miny + vstep));
-              if ((color2_blob->blobSize > 200) && checkNearBeacon(color1_blob, color2_blob, 20, 1000 + 200, 20, 20) && 
-                      (color2_blob->density > 0.6)) {
+              float color2_aspect = std::abs((float)(2*(hstep-1) + color2_blob->maxx - color2_blob->minx) / (float)(2*(vstep-1) + color2_blob->maxy-color2_blob->miny));
+              if ((color2_blob->blobSize > 200) && checkNearBeacon(color1_blob, color2_blob, 20, 1000 + 200, 20, 20) && (color2_blob->density > 0.6) && color2_aspect > 0.7 && color2_aspect < 1.3) {
                   for (int k = 0; k < white_blobs->size(); k++) {
                       BlobRegion *white_blob = (*white_blobs)[k];
                       if ((white_blob->blobSize > 200) && checkNearBeacon(color2_blob, white_blob, 100, 1000 + 200, 100, 100)) {
-                          // TODO: Still need some sort of white check here to avoid detecting upside-down beacons
-                          //TODO change these coordinates for the beacon
-                          //get the color1_blob or color2_blob with the better aspect ratio (1 to 1) and use it's width (and calculate the correct height)
+
+                          auto segImg = vblocks_.robot_vision->getSegImgTop();
+                          int height = color1_blob->maxy - color1_blob->miny;
+                          int width = color1_blob->maxx - color1_blob->minx;
+                          int num_beacon_colors = 0;
+                          float beacon_color_density = 0;
+                          uint8_t c;
+                          int startx, endx, starty, endy;
+                          startx = ((color1_blob->minx) / hstep) * hstep;
+                          endx = ((color1_blob->maxx) / hstep) * hstep;
+                          starty = MAX(((color1_blob->miny - height / 2) / vstep) * vstep, 0);
+                          endy = ((color1_blob->miny - 1) / vstep) * vstep;
+
+                          for (int i = startx; i < endx; i += hstep){
+                              for (int j = starty; j < endy; j += vstep){
+                                  c = segImg[j*iparams_.width + i];
+                                  if(c == c_YELLOW || c == c_BLUE || c == c_PINK){
+                                      num_beacon_colors += hstep * vstep;
+                                  }
+                              }
+                          }
+
+                          if(starty == 0){
+                              beacon_color_density = 0;
+                          } else{
+                              beacon_color_density = ((float)num_beacon_colors) / ((float)(height*(color1_blob->maxx - color1_blob->minx)) / 2 + 0.00001);
+                          }
 
                           int min_width = MIN(color1_blob->maxx - color1_blob->minx, color2_blob->maxx - color2_blob->minx);
                           int min_height = MIN(color1_blob->maxy - color1_blob->miny, color2_blob->maxy - color2_blob->miny);
@@ -76,13 +85,17 @@ void BeaconDetector::findBeacon(std::map<uint8_t, std::vector<BlobRegion *>> &bl
                               maxy = color2_blob->maxy;
                           }
 
-                          coordinates = {minx, miny, maxx, maxy};
+                          if (beacon_color_density < 0.5) {
+                              coordinates = {minx, miny, maxx, maxy};
+                          } else {
+                              printf("Beacon false positive detected\n");
+                          }
                           //printf("BEACON: Found beacon %s\n", BEACON_NAME(beacon));
                           //printf("BLOB1: centerX %d, centerY %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, density = %lf\n",
-                          //        color1_blob->centerx, color1_blob->centery, color1_blob->minx, color1_blob->miny, color1_blob->maxx, color1_blob->maxy, 
+                          //        color1_blob->centerx, color1_blob->centery, color1_blob->minx, color1_blob->miny, color1_blob->maxx, color1_blob->maxy,
                           //        color1_blob->numRuns, color1_blob->blobSize, color1_blob->color, color1_blob->density);
                           //printf("BLOB2: centerX %d, centerY %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, density = %lf\n",
-                          //        color2_blob->centerx, color2_blob->centery, color2_blob->minx, color2_blob->miny, color2_blob->maxx, color2_blob->maxy, 
+                          //        color2_blob->centerx, color2_blob->centery, color2_blob->minx, color2_blob->miny, color2_blob->maxx, color2_blob->maxy,
                           //        color2_blob->numRuns, color2_blob->blobSize, color2_blob->color, color2_blob->density);
                           return;
                       }
@@ -127,7 +140,7 @@ void BeaconDetector::findBeacons(std::map<uint8_t, std::vector<BlobRegion *>> &b
           object.imageCenterX = (box[0] + box[2]) / 2;
           object.imageCenterY = (box[1] + box[3]) / 2;
           auto position = cmatrix_.getWorldPosition(object.imageCenterX, object.imageCenterY, heights[beacon.first]);
-          object.visionDistance = cmatrix_.groundDistance(position);
+          object.visionDistance = cmatrix_.groundDistance(position) * 1.04; // Distance estimates are a little low
           object.visionBearing = cmatrix_.bearing(position);
           object.visionElevation = cmatrix_.elevation(position);
           printf("BEACON %s: centerx %d, centery %d, elevation: %lf, distance: %lf\n",

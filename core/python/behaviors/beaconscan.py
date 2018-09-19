@@ -12,8 +12,7 @@ import cfgstiff
 from task import Task
 import mem_objects
 from state_machine import Node, C, T, StateMachine
-
-
+import core
 
 class Playing(StateMachine):
     class Stand(Node):
@@ -37,9 +36,6 @@ class Playing(StateMachine):
             for i, beacon in enumerate(beacons):
                 if beacon.seen:
                     print('beacon', i, beacon.visionDistance, 'mm')
-
-
-
 
     def setup(self):
         stand = self.Stand()
