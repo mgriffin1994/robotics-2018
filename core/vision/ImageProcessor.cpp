@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <math.h> 
 
 ImageProcessor::ImageProcessor(VisionBlocks& vblocks, const ImageParams& iparams, Camera::Type camera) :
   vblocks_(vblocks), iparams_(iparams), camera_(camera), cmatrix_(iparams_, camera)
@@ -129,7 +130,7 @@ void ImageProcessor::processFrame(){
   findBlob(blobs);
   detectBall(blobs);
   detectGoal(blobs);
-  beacon_detector_->findBeacons(blobs);
+  beacon_detector_->findBeacons(blobs, horizon);
 
 
   std::map<uint8_t, std::vector<BlobRegion *>>::iterator it;
@@ -143,11 +144,17 @@ void ImageProcessor::processFrame(){
   blobs.clear();
 }
 
-bool checkNearBeacon(BlobRegion *blob1, BlobRegion *blob2, int thresholdx, int thresholdy) {
+bool checkNearBeacon(BlobRegion *blob1, BlobRegion *blob2, int thresholdx, int thresholdy, int right_threshold, int left_threshold) {
     int hor_dist = std::abs(blob1->centerx - blob2->centerx);
     int vert_dist = blob2->centery - blob1->centery; // Not abs because direction matters
 
-    if ((hor_dist < thresholdx) && (vert_dist > 0) && (vert_dist < thresholdy)) {
+    int right_diff = std::abs(blob1->maxx - blob2->maxx);
+    int left_diff = std::abs(blob1->minx - blob2->minx);
+    int middle_diff = std::abs(blob1->maxy - blob2->miny);  
+
+    if ((hor_dist < thresholdx) && (vert_dist > 0) && (vert_dist < thresholdy) && (right_diff < right_threshold) 
+        && (left_diff < left_threshold) && (middle_diff < 16)) {
+    //if ((hor_dist < thresholdx) && (vert_dist > 0) && (vert_dist < thresholdy)) {
         return true;
     } 
 
@@ -167,12 +174,15 @@ void ImageProcessor::detectGoal(std::map<uint8_t, std::vector<BlobRegion *>> &bl
   goal->visionBearing = cmatrix_.bearing(p);
   goal->visionElevation = cmatrix_.elevation(p);
   goal->visionDistance = cmatrix_.groundDistance(p);
+  // printf("GOAL: elevation: %lf, distance: %lf\n", goal->visionElevation, goal->visionDistance);
 
-  if(goal->visionElevation > 500){
-    goal->seen = false;
-  } else {
-    goal->seen = true;
-  }
+ // TODO: Get elevation thresholds
+  goal->seen = true;
+  //if(goal->visionElevation > 500){
+  //  goal->seen = false;
+  //} else {
+  //  goal->seen = true;
+  //}
 
   goal->fromTopCamera = camera_ == Camera::TOP;
 }
@@ -191,8 +201,9 @@ void ImageProcessor::detectBall(std::map<uint8_t, std::vector<BlobRegion *>> &bl
   ball->visionBearing = cmatrix_.bearing(p);
   ball->visionElevation = cmatrix_.elevation(p);
   ball->visionDistance = cmatrix_.groundDistance(p);
+  // printf("BALL: elevation: %lf, distance: %lf\n", ball->visionElevation, ball->visionDistance);
 
-  printf("visionDistance: %f\n", ball->visionDistance);
+  // printf("visionDistance: %f\n", ball->visionDistance);
 
     // TODO: Get elevation thresholds
 //  if(ball->visionElevation > 100){
@@ -208,50 +219,134 @@ bool compareBlobs(const BlobRegion *a, const BlobRegion *b){
 	return a->blobSize > b->blobSize;
 }
 
+bool dense_sort(const BlobRegion *a, const BlobRegion *b){
+	return a->orange_density > b->orange_density;
+}
+
+//if ball to far away, aspect ratio either below 1 or like 5 or 6 (issue with blob creation? some kind of check?)
+//  probably issue with only detecting the wider runs and not the thin runs on top (possibly issue with removing those 1 and 2 lenght runs below)
+// 
+
+
 // TODO: Create lookup table for blobsize and visionDistance to reliably draw overlay
 bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, int& imageX, int& imageY, int& radius) {
     imageX = imageY = radius = 0;
     int vstep = 1 << 1;
     int hstep = 1 << 2;
     std::vector<BlobRegion *> *orange_blobs = &blobs[c_ORANGE];
+    std::vector<BlobRegion *> dense_sort_blobs;
     for (int i = 0; i < orange_blobs->size(); i++) {
         BlobRegion *blob = (*orange_blobs)[i];
         // TODO: more heuristics here?
-        if (((camera_ == Camera::TOP) && (blob->blobSize > 50)) || 
+        HorizonLine horizon = vblocks_.robot_vision->horizon;
+        imageX = (blob->maxx + blob->minx) / 2; //TODO If still too far to the bottom right, remove hstep and vstep
+        imageY = (blob->maxy + blob->miny) / 2;
+
+        if (((camera_ == Camera::TOP) && (blob->blobSize > 50) && (blob->blobSize < 1500) && (horizon.isAbovePoint(imageX, imageY))) || 
                 ((camera_ != Camera::TOP) && (blob->blobSize > 1000))) {
-            imageX = blob->centerx;
-            imageY = blob->centery;
+            //imageX = blob->centerx;
+            //imageY = blob->centery;
+            
+
             // TODO: Why +hstep +vstep?
-            radius = std::max(blob->maxx - blob->minx + hstep, blob->maxy - blob->miny + vstep) / 2;
+            // radius = std::max(blob->maxx - blob->minx + hstep, blob->maxy - blob->miny + vstep) / 2;
+            radius = ((blob->maxx - blob->minx + hstep) + (blob->maxy - blob->miny + vstep)) / 4;
+            float aspect_ratio = std::abs((float)(2*(hstep-1) + blob->maxx - blob->minx) / (float)(2*(vstep-1) + blob->maxy-blob->miny));
+
+            auto segImg = getSegImg();
+            int height = blob->maxy - blob->miny;
+            int width = blob->maxx - blob->minx;
+            int num_orange = 0;
+            float orange_density = 0;
+            uint8_t c;
+            int startx, endx, starty, endy;
+            startx = ((blob->minx + width / 3) / hstep) * hstep;
+            endx = ((blob->maxx - width / 3) / hstep) * hstep;
+            starty = ((blob->miny + height / 3) / vstep) * vstep;
+            endy = ((blob->maxy - height / 3) / vstep) * vstep;
+            
+
+            for (int i = startx; i < endx; i += hstep){
+                for (int j = starty; j < endy; j += vstep){
+                    c = segImg[j*iparams_.width + i];
+                    if(c == c_ORANGE){
+                        num_orange += hstep * vstep;
+                    }
+                }
+            }
+
+            if(endy == iparams_.height){orange_density = 1.0;}
+            else{orange_density =  ((float)num_orange) / ((float)(height*(blob->maxx - blob->minx)) / 9 + 0.00001);}
+
+            blob->orange_density = orange_density;
+            
+            //uint8_t c = segImg [y * iparams_.width + x]; //color at current step
+            //int num_orange_below =
+
+
+
+            //TODO add tilt-angle test to see if ball not floating (should help with spurious arm and leg detections)
             // TODO: Get thresholds for correct ball radius
             //       Fix these conditions for far distances, overlay flickers
-            printf("aspect ratio: %lf\n", std::abs((float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)));
-            if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
-                    ((radius > 1) && (radius < 100)) && (blob->density > 0.5)){
-                printf("centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf\n",
-                        blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density);
-                return true;
+            // printf("aspect ratio: %lf\n", std::abs((float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)));
+            
+
+            // float focal_pix_constant 72.0 * 2.18; //default values correct?
+            // float robo_cam_tilt = vblocks_.joint->getJointValue(HeadPan);
+            // float tilt_angle = (atan((float)(iparams_.height / 2 - imageY) / focal_pix_constant) + robo_cam_tilt) * 180.0 / M_PI;
+
+            //if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
+            //        ((radius > 1) && (radius < 100)) && (blob->density > 0.5)){
+//            if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
+//                    ((radius > 1) && (radius < 100)) && (blob->density > 0.5 && tilt_angle < 1.5)){
+            if ((aspect_ratio > 0.7) && (aspect_ratio < 1.3) && ((radius > 1) && (radius < 150)) && (blob->density > 0.5) && (orange_density > 0.5)){
+                 printf("BALL found: imageX %d, imageY %d, centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf, aspect_ratio = %lf, orange_density = %lf, endy = %d\n", imageX, imageY, blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density, aspect_ratio, orange_density, endy);
+                 //printf("aspect ratio: %lf\n", aspect_ratio);
+
+                dense_sort_blobs.push_back(blob);
+                continue;
+ 
+            } //else if doesn't reach density and aspect ratio constraints may be occluded (can deal with later)
+            else {
+
+                //printf("NOT FOUND - green density: %lf", green_density);
+                //printf("BALL NOT FOUND: imageX %d, imageY %d, centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf, aspect_ratio = %lf, orange_density = %lf, endy = %d\n", imageX, imageY, blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density, std::abs((float)(2*(hstep-1) + blob->maxx - blob->minx) / (float)(2*(vstep-1) + blob->maxy-blob->miny)), orange_density, endy);
 
             }
-        } else {
-            return false;
-        }
+        } 
     }
+
+    std::sort(dense_sort_blobs.begin(), dense_sort_blobs.end(), dense_sort);
+
+    if (dense_sort_blobs.size() > 0) {
+        BlobRegion *blob = dense_sort_blobs[0];
+
+        imageX = (blob->maxx + blob->minx) / 2; //TODO If still too far to the bottom right, remove hstep and vstep
+        imageY = (blob->maxy + blob->miny) / 2;
+        radius = ((blob->maxx - blob->minx + hstep) + (blob->maxy - blob->miny + vstep)) / 4;
+        return true;
+    }
+
     return false;
 }
 
+// TODO: Check no yellow blobs below?
 bool ImageProcessor::findGoal(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, int& imageX, int& imageY) {
     imageX = imageY = 0;
     std::vector<BlobRegion *> *blue_blobs = &blobs[c_BLUE];
     for (int i = 0; i < blue_blobs->size(); i++) {
         BlobRegion *blob = (*blue_blobs)[i];
         // TODO: more heuristics here?
-        if (camera_ == Camera::TOP && blob->blobSize > 500){
-            imageX = blob->centerx;
-            imageY = blob->centery;
-            if (std::abs(1.7 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy - blob->miny)) < 0.40){
-                //                  printf("centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n",
-                //                      blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color);
+        imageX = (blob->maxx + blob->minx) / 2; //TODO If still too far to the bottom right, remove hstep and vstep
+        imageY = (blob->maxy + blob->miny) / 2;
+        if ((camera_ == Camera::TOP) && (blob->blobSize > 5000)) {
+            //printf("aspect ratio: %lf\n", std::abs((float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)));
+
+            //printf("GOAL almost found: centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n",
+             //           blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color);
+            if (std::abs(1.7 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy - blob->miny)) < 0.80){
+                // printf("GOAL: centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n",
+                  //      blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color);
                 return true;
 
             }
@@ -364,12 +459,12 @@ void ImageProcessor::findBlob(std::map<uint8_t, std::vector<BlobRegion *>> &blob
         for(int j=0; j < all_runs[i].size(); j++){
             Run *run_ptr = all_runs[i][j];
 
-            if(run_ptr->end - run_ptr->start + hstep <= 2*hstep){
+            //if(run_ptr->end - run_ptr->start + hstep <= 2*hstep){
               //if very short run don't use it to create new blob or adjust statistics of existing blobs
               //should reduce the impact of noise and create more accurate blobs
-              continue;
+            //  continue;
 
-            }
+            //}
 
             //create blobs whenever encouter root node or any of it's children
             Run *parent_ptr = run_ptr->lead_parent;
@@ -388,7 +483,7 @@ void ImageProcessor::findBlob(std::map<uint8_t, std::vector<BlobRegion *>> &blob
                 blob_ptr->maxx = run_ptr->end;
                 blob_ptr->maxy = run_ptr->row;
                 blob_ptr->numRuns = 1;
-                blob_ptr->numPixels = (run_ptr->end - run_ptr->start) * vstep;
+                blob_ptr->numPixels = (run_ptr->end - run_ptr->start + hstep) * vstep;
                 blob_ptr->blobSize = (blob_ptr->maxx - blob_ptr->minx + hstep) * vstep; //actual size in pixels in original image
                 // TODO: Filter out small blobs
                 blob_ptr->color = run_ptr->color;
@@ -404,9 +499,9 @@ void ImageProcessor::findBlob(std::map<uint8_t, std::vector<BlobRegion *>> &blob
                 blob_ptr->miny = MIN(blob_ptr->miny, run_ptr->row);
                 blob_ptr->maxy = MAX(blob_ptr->maxy, run_ptr->row);
                 blob_ptr->centerx += (int) ((((run_ptr->start + run_ptr->end) / 2) - blob_ptr->centerx + hstep) / blob_ptr->numRuns);
-                blob_ptr->centery += (int) ((run_ptr->row - blob_ptr->centery + hstep) / blob_ptr->numRuns);
+                blob_ptr->centery += (int) ((run_ptr->row - blob_ptr->centery + vstep) / blob_ptr->numRuns);
                 blob_ptr->numRuns += 1;
-                blob_ptr->numPixels += (run_ptr->end - run_ptr->start) * vstep;
+                blob_ptr->numPixels += (run_ptr->end - run_ptr->start + hstep) * vstep;
                 // TODO: Why +hstep +vstep?
                 blob_ptr->blobSize = (blob_ptr->maxx - blob_ptr->minx + hstep) * (blob_ptr->maxy - blob_ptr->miny + vstep); //actual size in pixels in original image
             }

@@ -246,12 +246,12 @@ void VisionWindow::drawGoal(ImageWidget* image) {
   std::cout << "Drawing goal" << std::endl;
   QPen pen(segCol[c_BLUE]);
 
-  int width = cmatrix.getCameraWidthByDistance(goal.visionDistance, 110);
-  int height = cmatrix.getCameraHeightByDistance(goal.visionDistance, 100);
+  int width = cmatrix.getCameraWidthByDistance(goal.visionDistance, 860);
+  int height = cmatrix.getCameraHeightByDistance(goal.visionDistance, 510);
   int x1 = goal.imageCenterX - width / 2;
   
   // Draw top
-  int ty1 = goal.imageCenterY - height;
+  int ty1 = goal.imageCenterY - height / 2;
   QPainterPath path;
   path.addRoundedRect(QRect(x1, ty1, width, height), 5, 5);
   painter.setPen(pen);
