@@ -30,7 +30,7 @@ max_int = 10
 max_num_frames = 30
 max_distance = 2000
 max_int_steps = 10 #if want to use all steps, then set to float("inf")
-ball_distance_close = 100
+ball_distance_close = 200
 
 x_error_thresh = 10
 y_error_thresh = float('inf') #10 change to actual value when testing this
@@ -41,7 +41,7 @@ class ApproachBall(Node):
 
     def __init__(self):
         super(ApproachBall, self).__init__()
-        self.x_errors = []
+        self.x_errors = [750] * 10
         self.y_errors = []
         self.theta_errors = []
         self.prev_time = 0.0
@@ -62,12 +62,14 @@ class ApproachBall(Node):
         if True:
 
             x_error = ball.visionDistance if ball.seen else self.prev_ball_distance
+            x_error = (x_error + sum(self.x_errors[8:])) / 3
             ball_center = ball.imageCenterX if ball.seen else self.prev_ball_centerx
             goal_center = goal.imageCenterX if goal.seen else self.prev_goal_centerx
 
             x_error -= ball_distance_close
 
             print("x_error: {}".format(x_error))
+            print(self.x_errors)
             print("ball seen", ball.seen)
 
             y_error = ball_center - goal_center
@@ -79,9 +81,16 @@ class ApproachBall(Node):
             #We probably don't really need an I control since there will never really be anything preventing us from getting to the desired place (unless someone is holding the robot in place) and we have a max speed
             # D control will help slow down and not oscillate towards the desired place
 
-
             time = self.getTime()
+
+            # TODO: Fix this eventually
+            if time == 0.0:
+                time = 1.0
+
+            print(time, self.prev_time)
             x_vel = x_kp*x_error + (x_kd*((x_error - self.x_errors[-2]) / (2*(time - self.prev_time))) if len(self.x_errors) > 1 else 0.0) + x_ki*(max(sum(self.x_errors), max_int))
+
+            x_error += ball_distance_close
 
             if ball.visionDistance > 1500 or (self.prev_ball_distance > 1500 and not ball.seen):
                 x_vel = 1.0
@@ -104,7 +113,7 @@ class ApproachBall(Node):
                 self.theta_errors.pop(0)
 
             commands.setWalkVelocity(x_vel, y_vel, theta_vel)
-            self.prev_ball_distance = x_error + ball_distance_close
+            self.prev_ball_distance = x_error
             self.prev_ball_bearing = theta_error
             self.prev_ball_centerx = ball.imageCenterX if ball.seen else self.prev_ball_centerx
             self.prev_goal_centerx = goal.imageCenterX if goal.seen else self.prev_goal_centerx
@@ -112,7 +121,6 @@ class ApproachBall(Node):
 #        else:
 #            if not self.goal_search_done and not self.ball_search_done:
 #                commands.setWalkVelocity(0, 0, math.pi / 3)
-#                if goal.seen:
 #                    self.goal_search_done = True
 #                    self.prev_goal_centerx = goal.imageCenterX
 #                if ball.seen:
