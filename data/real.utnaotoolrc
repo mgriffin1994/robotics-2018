@@ -1,0 +1,97 @@
+---
+filesLocationIndex: 40
+filesUpdateTimeChecked: true
+onDemand: false
+bypassVision: false
+visionOnly: false
+fullProcess: true
+logStream: false
+logFrame: 0
+logStep: 1
+logStart: 0
+logEnd: -1
+logPath: ""
+coreBehaviors: false
+logWindowConfig:
+  maxLevel: 37193360
+  minLevel: 0
+  module: 34991712
+  filterTextLogs: false
+worldConfig:
+  simPlayers: 1
+  playSpeed: 50
+  mode: 0
+  autoplay: false
+  teamNumber: 1
+  teamColor: 0
+  locSimPathfile: ""
+  skip: 0
+  seed: 1073742083
+rcConfig:
+  accelX: 1
+  accelY: 1
+  accelTheta: 0.25
+  maxVelX: 1
+  maxVelY: 1
+  maxVelTheta: 1
+kfConfig:
+  base_s: TorsoBase
+  sequence_file: /home/jnguyen4/nao/trunk/data/kicks/default.yaml
+visionConfig:
+  tab: 0
+  all: true
+  horizon: false
+  tooltip: false
+  calibration: false
+  checkerboard: false
+  robot: false
+  lines: false
+annotationConfig:
+  color: c_UNDEFINED
+  selection_type: Rectangle
+  camera: Top
+  auto_create: false
+memorySelectConfig:
+  selected_blocks:
+    audio_processing: false
+    behavior: true
+    behavior_params: false
+    behavior_trace: false
+    camera_info: false
+    game_state: true
+    led_commands: false
+    localization: true
+    opponents: false
+    raw_camera_info: false
+    raw_image: false
+    raw_sensors: false
+    raw_vision_frame_info: false
+    robot_info: false
+    robot_state: true
+    robot_vision: false
+    sim_truth_data: false
+    speech: false
+    team_packets: true
+    vision_al_walk_param: false
+    vision_body_model: false
+    vision_frame_info: true
+    vision_joint_angles: true
+    vision_joint_commands: false
+    vision_kick_params: false
+    vision_kick_request: false
+    vision_odometry: true
+    vision_processed_sonar: false
+    vision_sensors: false
+    vision_walk_info: false
+    vision_walk_param: false
+    vision_walk_request: true
+    vision_walk_response: false
+    world_objects: true
+  additional_blocks:
+    - sim_truth_data
+    - raw_sensors
+    - behavior_trace
+loggingModules:
+  []
+enableAudio: false
+...
