@@ -21,16 +21,17 @@ x_kd = 0.0
 y_kp = 0.0
 y_ki = 0.0
 y_kd = 0.0
-theta_kp = 0.0
+theta_kp = 0.5
 theta_ki = 0.0
 theta_kd = 0.0
 
 max_length = 10
 max_int = 10
+moving_avg_samples = 3
 max_num_frames = 30
 max_distance = 2000
 max_int_steps = 10 #if want to use all steps, then set to float("inf")
-ball_distance_close = 200
+ball_distance_close = 300
 
 x_error_thresh = 10
 y_error_thresh = float('inf') #10 change to actual value when testing this
@@ -62,14 +63,12 @@ class ApproachBall(Node):
         if True:
 
             x_error = ball.visionDistance if ball.seen else self.prev_ball_distance
-            x_error = (x_error + sum(self.x_errors[8:])) / 3
+            x_error = (x_error + sum(self.x_errors[(max_int - moving_avg_samples + 1):])) / moving_avg_samples
             ball_center = ball.imageCenterX if ball.seen else self.prev_ball_centerx
             goal_center = goal.imageCenterX if goal.seen else self.prev_goal_centerx
 
             x_error -= ball_distance_close
 
-            print("x_error: {}".format(x_error))
-            print(self.x_errors)
             print("ball seen", ball.seen)
 
             y_error = ball_center - goal_center
@@ -87,10 +86,10 @@ class ApproachBall(Node):
             if time == 0.0:
                 time = 1.0
 
-            print(time, self.prev_time)
             x_vel = x_kp*x_error + (x_kd*((x_error - self.x_errors[-2]) / (2*(time - self.prev_time))) if len(self.x_errors) > 1 else 0.0) + x_ki*(max(sum(self.x_errors), max_int))
 
             x_error += ball_distance_close
+            # TODO: Check distance in bottom camera and use for ball_distance_close
 
             if ball.visionDistance > 1500 or (self.prev_ball_distance > 1500 and not ball.seen):
                 x_vel = 1.0
@@ -99,8 +98,9 @@ class ApproachBall(Node):
             y_vel = y_kp*y_error + (y_kd*((y_error - self.y_errors[-2]) / (2*(time - self.prev_time))) if len(self.y_errors) > 1 else 0.0) + y_ki*(max(sum(self.y_errors), max_int))
             theta_vel = theta_kp*theta_error + (theta_kd*((theta_error - self.theta_errors[-2]) / (2*(time - self.prev_time))) if len(self.theta_errors) > 1 else 0.0) + theta_ki*(max(sum(self.theta_errors), max_int))
 
-            self.prev_time = time
+            print("theta_vel: {}".format(theta_vel))
 
+            self.prev_time = time
 
             self.x_errors.append(x_error)
             self.y_errors.append(y_error)
