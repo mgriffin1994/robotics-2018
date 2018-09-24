@@ -2,160 +2,243 @@
 #include <memory/TextLogger.h>
 #include <vision/Logging.h>
 
-
 using namespace Eigen;
 
 BeaconDetector::BeaconDetector(DETECTOR_DECLARE_ARGS) : DETECTOR_INITIALIZE {
 }
 
-void BeaconDetector::findBeacon(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, WorldObjectType beacon, std::vector<int> &coordinates) {
-  static map<WorldObjectType, vector<uint8_t>> colors = {
-    { WO_BEACON_YELLOW_BLUE, {c_YELLOW, c_BLUE} },
-    { WO_BEACON_YELLOW_PINK, {c_YELLOW, c_PINK} },
-    { WO_BEACON_PINK_YELLOW, {c_PINK, c_YELLOW} },
-    { WO_BEACON_PINK_BLUE, {c_PINK, c_BLUE} },
-    { WO_BEACON_BLUE_PINK, {c_BLUE, c_PINK} },
-    { WO_BEACON_BLUE_YELLOW, {c_BLUE, c_YELLOW} }
-  };
-
-  int vstep = 1 << 1;
-  int hstep = 1 << 2;
-  uint8_t color1 = colors[beacon][0];
-  uint8_t color2 = colors[beacon][1];
-  std::vector<BlobRegion *> *color1_blobs = &blobs[color1];
-  std::vector<BlobRegion *> *color2_blobs = &blobs[color2];
-  std::vector<BlobRegion *> *white_blobs = &blobs[c_WHITE];
-
-  for (int i = 0; i < color1_blobs->size(); i++) {
-      BlobRegion *color1_blob = (*color1_blobs)[i];
-      float color1_aspect = std::abs((float)(2*(hstep-1) + color1_blob->maxx - color1_blob->minx) / (float)(2*(vstep-1) + color1_blob->maxy-color1_blob->miny));
-
-      if ((color1_blob->blobSize > 200) && (color1_blob->density > 0.6) && color1_aspect > 0.7 && color1_aspect < 1.3){
-          for (int j = 0; j < color2_blobs->size(); j++) {
-              BlobRegion * color2_blob = (*color2_blobs)[j];
-              float color2_aspect = std::abs((float)(2*(hstep-1) + color2_blob->maxx - color2_blob->minx) / (float)(2*(vstep-1) + color2_blob->maxy-color2_blob->miny));
-
-              if ((color2_blob->blobSize > 200) && checkNearBeacon(color1_blob, color2_blob, 20, 1000 + 200, 20, 20) && (color2_blob->density > 0.6) && color2_aspect > 0.7 && color2_aspect < 1.3) {
-                  int blob2_height = color2_blob->maxy - color2_blob->miny;
-                  for (int k = 0; k < white_blobs->size(); k++) {
-                      BlobRegion *white_blob = (*white_blobs)[k];
-                      int y_threshold = blob2_height + color2_blob->maxy;
-
-                      printf("y_threshold for white blob: %d\n", y_threshold);
-                      printf("white_blob->blobSize: %d, white_blob->centery: %d\n", white_blob->blobSize, white_blob->centerx);
-                      if ((white_blob->blobSize > 200) && checkNearBeacon(color2_blob, white_blob, 100, 1000 + 200, 100, 100)) {
-
-                          auto segImg = vblocks_.robot_vision->getSegImgTop();
-                          int height = color1_blob->maxy - color1_blob->miny;
-                          int width = color1_blob->maxx - color1_blob->minx;
-                          int num_beacon_colors = 0;
-                          float beacon_color_density = 0;
-                          uint8_t c;
-                          int startx, endx, starty, endy;
-                          startx = ((color1_blob->minx) / hstep) * hstep;
-                          endx = ((color1_blob->maxx) / hstep) * hstep;
-                          starty = MAX(((color1_blob->miny - height / 2) / vstep) * vstep, 0);
-                          endy = ((color1_blob->miny - 1) / vstep) * vstep;
-
-                          for (int i = startx; i < endx; i += hstep){
-                              for (int j = starty; j < endy; j += vstep){
-                                  c = segImg[j*iparams_.width + i];
-                                  if(c == c_YELLOW || c == c_BLUE || c == c_PINK){
-                                      num_beacon_colors += hstep * vstep;
-                                  }
-                              }
-                          }
-
-                          if(starty == 0){
-                              beacon_color_density = 0;
-                          } else{
-                              beacon_color_density = ((float)num_beacon_colors) / ((float)(height*(color1_blob->maxx - color1_blob->minx)) / 2 + 0.00001);
-                          }
-
-                          int min_width = MIN(color1_blob->maxx - color1_blob->minx, color2_blob->maxx - color2_blob->minx);
-                          int min_height = MIN(color1_blob->maxy - color1_blob->miny, color2_blob->maxy - color2_blob->miny);
-                          int minx, miny, maxx, maxy;
-
-                          if (min_width == (color1_blob->maxx - color1_blob->minx)) {
-                              minx = color1_blob->minx;
-                              maxx = color1_blob->maxx;
-                          } else {
-                              minx = color2_blob->minx;
-                              maxx = color2_blob->maxx;
-                          }
-
-                          if (min_height == (color1_blob->maxy - color1_blob->miny)) {
-                              miny = color1_blob->miny;
-                              maxy = color1_blob->maxy + min_height;
-                          } else {
-                              miny = color2_blob->miny - min_height;
-                              maxy = color2_blob->maxy;
-                          }
-
-                          if (beacon_color_density < 0.5) {
-                              coordinates = {minx, miny, maxx, maxy};
-                          } else {
-                              printf("Beacon false positive detected\n");
-                          }
-                          //printf("BEACON: Found beacon %s\n", BEACON_NAME(beacon));
-                          //printf("BLOB1: centerX %d, centerY %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, density = %lf\n",
-                          //        color1_blob->centerx, color1_blob->centery, color1_blob->minx, color1_blob->miny, color1_blob->maxx, color1_blob->maxy,
-                          //        color1_blob->numRuns, color1_blob->blobSize, color1_blob->color, color1_blob->density);
-                          //printf("BLOB2: centerX %d, centerY %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, density = %lf\n",
-                          //        color2_blob->centerx, color2_blob->centery, color2_blob->minx, color2_blob->miny, color2_blob->maxx, color2_blob->maxy,
-                          //        color2_blob->numRuns, color2_blob->blobSize, color2_blob->color, color2_blob->density);
-                          return;
-                      }
-                  }
-              }
-          }
-      }
-  }
+unsigned char* BeaconDetector::getSegImg(){
+    if(camera_ == Camera::TOP)
+        return vblocks_.robot_vision->getSegImgTop();
+    return vblocks_.robot_vision->getSegImgBottom();
 }
 
-void BeaconDetector::findBeacons(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, HorizonLine &horizon) {
-  if(camera_ == Camera::BOTTOM) return;
-  static map<WorldObjectType,int> heights = {
-    { WO_BEACON_YELLOW_BLUE, 300 },
-    { WO_BEACON_YELLOW_PINK, 200 },
-    { WO_BEACON_PINK_YELLOW, 200 },
-    { WO_BEACON_PINK_BLUE, 200 },
-    { WO_BEACON_BLUE_PINK, 200 },
-    { WO_BEACON_BLUE_YELLOW, 300 }
-  };
+vector<Blob> filterByAspectRatio(vector<Blob> blobs) {
+    vector<Blob> ret;
+    for(int i = 0; i < blobs.size(); ++i) {
+        double aspect_ratio = calculateBlobAspectRatio(blobs[i]);
 
-  //assuming first color is bottom color, right above white
+        if (aspect_ratio < ASPECT_RATIO_LOW_BOUND || aspect_ratio > ASPECT_RATIO_HIGH_BOUND)
+            continue;
 
-  static map<WorldObjectType,vector<int>> beacons = {
-    { WO_BEACON_YELLOW_BLUE, {-1, -1, -1, -1} },
-    { WO_BEACON_YELLOW_PINK, {-1, -1, -1, -1} },
-    { WO_BEACON_PINK_YELLOW, {-1, -1, -1, -1} },
-    { WO_BEACON_PINK_BLUE,   {-1, -1, -1, -1} },
-    { WO_BEACON_BLUE_PINK,   {-1, -1, -1, -1} },
-    { WO_BEACON_BLUE_YELLOW, {-1, -1, -1, -1} }
-  };
+        ret.push_back(blobs[i]);
+    }
+    return ret;
+}
 
-  // auto fid = vblocks_.frame_info->frame_id;
-  int beacon_count = 0;
-  // if(fid >= 6150) return;
-  for(auto beacon : beacons) {
-      findBeacon(blobs, beacon.first, beacon.second);
-      if (beacon.second[0] != -1) {
-          beacon_count++;
-          auto& object = vblocks_.world_object->objects_[beacon.first];
-          auto box = beacon.second;
-          object.imageCenterX = (box[0] + box[2]) / 2;
-          object.imageCenterY = (box[1] + box[3]) / 2;
-          auto position = cmatrix_.getWorldPosition(object.imageCenterX, object.imageCenterY, heights[beacon.first]);
-          object.visionDistance = cmatrix_.groundDistance(position) * 1.04; // Distance estimates are a little low
-          object.visionBearing = cmatrix_.bearing(position);
-          object.visionElevation = cmatrix_.elevation(position);
-          printf("BEACON %s: centerx %d, centery %d, elevation: %lf, distance: %lf\n",
-                  BEACON_NAME(beacon.first), object.imageCenterX, object.imageCenterY, object.visionElevation, object.visionDistance);
-          object.seen = true;
-          object.fromTopCamera = camera_ == Camera::TOP;
-          tlog(30, "saw %s at (%i,%i) with calculated distance %2.4f", getName(beacon.first), object.imageCenterX, object.imageCenterY, object.visionDistance);
-      }
-  }
-  //printf("Found %d beacons\n", beacon_count);
+vector<Blob> filterByDensity(vector<Blob> blobs) {
+    vector<Blob> ret;
+    for(int i = 0; i < blobs.size(); ++i) {
+        double area = calculateBlobArea(blobs[i]);
+        double density = blobs[i].lpCount / area;
+        if(density < DENSITY_LOW_BOUND)
+            continue;
+        ret.push_back(blobs[i]);
+    }
+    return ret;
+}
+
+vector<pair<Blob, Blob> > makeBeaconPairs(vector<Blob> &tblobs, vector<Blob> &bblobs) {
+    vector<pair<Blob, Blob> > beacons;
+    for(int i = 0; i < tblobs.size(); ++i) {
+        for(int j = 0; j < bblobs.size(); ++j) {
+            if(tblobs[i].avgY > bblobs[j].avgY)
+                continue;
+            if(tblobs[i].avgX > bblobs[j].xf || tblobs[i].avgX < bblobs[j].xi)
+                continue;
+            if(bblobs[j].avgX > tblobs[i].xf || bblobs[j].avgX < tblobs[i].xi)
+                continue;
+            if(bblobs[j].yi - tblobs[i].yf > VERTICAL_SEPARATION_HIGH_BOUND)
+                continue;
+
+        #ifdef ENABLE_AREA_SIM_FILTERING
+            double tarea = calculateBlobArea(tblobs[i]);
+            double barea = calculateBlobArea(bblobs[j]);
+            double areaSim = tarea / barea;
+            if(areaSim > AREA_SIM_HIGH_BOUND || areaSim < AREA_SIM_LOW_BOUND)
+                continue;
+            // cout << "AS: " << areaSim << endl;
+        #endif
+
+            tblobs[i].invalid = false;
+            bblobs[j].invalid = false;
+            beacons.push_back(make_pair(tblobs[i], bblobs[j]));
+        }
+    }
+    return beacons;
+}
+
+bool BeaconDetector::validateInverted(pair<Blob, Blob> &bblob) {
+    unsigned char* segImg = getSegImg();
+    const int width = iparams_.width;
+    const int height = iparams_.height;
+    const int xstep = (1 << iparams_.defaultHorizontalStepScale);
+    const int ystep = (1 << iparams_.defaultVerticalStepScale);
+    
+    int startX = (bblob.first.xi + bblob.second.xi) / 2;
+    startX -= (startX % xstep);
+    int startY = bblob.second.yf;
+    startY -= (startY % ystep);
+    int dx = (bblob.first.dx + bblob.second.dx) / 2;
+    int dy = (bblob.first.dy + bblob.second.dy) / 2;
+    int endX = min(width - 1, startX + dx);
+    int endY = min(height - 1, startY + dy);
+
+    int tot_count = 1;
+    int white_count = 0;
+    for(int i = startX; i <= endX; i += xstep) {
+        for(int j = startY; j <= endY; j += ystep) {
+            auto c = static_cast<Color>(segImg[j * width + i]);
+            white_count += c == c_WHITE ? 1 : 0;
+            tot_count++;
+        }
+    }
+    double ratio = (double) white_count / tot_count;
+    // cout << white_count << " " << tot_count << endl;
+    // cout << "White Ratio: " << ratio << endl;
+    return ratio >= WHITE_BELOW_BEACON_LOW_BOUND;
+}
+
+bool BeaconDetector::validateUp(pair<Blob, Blob> &bblob) {
+    unsigned char* segImg = getSegImg();
+    const int width = iparams_.width;
+    const int height = iparams_.height;
+    const int xstep = (1 << iparams_.defaultHorizontalStepScale);
+    const int ystep = (1 << iparams_.defaultVerticalStepScale);
+
+    int startX = (bblob.first.xi + bblob.second.xi) / 2;
+    startX -= (startX % xstep);
+    int dx = (bblob.first.dx + bblob.second.dx) / 2;
+    int dy = (bblob.first.dy + bblob.second.dy) / 2;
+    int startY = max(0, bblob.first.yi - dy);
+    startY -= (startY % ystep);
+    int endX = min(width - 1, startX + dx);
+    int endY = min(height - 1, startY + dy);
+
+    if(bblob.first.yi - startY < dy * 0.4)
+        return true;
+
+    int tot_count = 1;
+    map<Color, int> colorCount = {
+        {c_BLUE, 0},
+        {c_YELLOW, 0},
+        {c_PINK, 0}
+    };
+
+    for(int i = startX; i <= endX; i += xstep) {
+        for(int j = startY; j <= endY; j += ystep) {
+            auto c = static_cast<Color>(segImg[j * width + i]);
+            tot_count++;
+            if(colorCount.find(c) != colorCount.end()) {
+                colorCount[c]++;
+            }
+        }
+    }
+
+    for(auto color: colorCount) {
+        double ratio = (double) color.second / tot_count;
+        // cout << COLOR_NAME(color.first) << " " << ratio << endl;
+        if(ratio >= COLOR_ABOVE_BEACON_HIGH_BOUND)
+            return false;
+    }
+
+    return true;
+}
+
+pair<Blob, Blob> BeaconDetector::findBeaconsOfType(const vector<Blob> &tb, const vector<Blob> &bb) {
+
+    // check if the aspect ratio is within ASPECT_RATIO_LOW_BOUND & ASPECT_RATIO_HIGH_BOUND
+    auto tblobs = filterByAspectRatio(tb);
+    auto bblobs = filterByAspectRatio(bb);
+    // check if the density is greater than DENSITY_LOW_BOUND
+    tblobs = filterByDensity(tblobs);
+    bblobs = filterByDensity(bblobs);
+
+    auto beacons = makeBeaconPairs(tblobs, bblobs);
+
+    for(int i = 0; i < beacons.size(); ++i) {
+        if(!validateInverted(beacons[i]) || !validateUp(beacons[i]))
+            continue;
+        return beacons[i];
+    }
+
+    // no valid beacon found return invalid
+    Blob b;
+    b.invalid = true;
+    return make_pair(b, b);
+}
+
+double density(Blob &b) {
+    double area = calculateBlobArea(b);
+    double density = b.lpCount / area;
+
+    return density;
+}
+
+void BeaconDetector::findBeacons(vector<Blob> &blobs) {
+    if(camera_ == Camera::BOTTOM) return;
+    static map<WorldObjectType,int> heights = {
+        { WO_BEACON_BLUE_YELLOW,    300 },
+        { WO_BEACON_YELLOW_BLUE,    300 },
+        { WO_BEACON_BLUE_PINK,      200 },
+        { WO_BEACON_PINK_BLUE,      200 },
+        { WO_BEACON_PINK_YELLOW,    200 },
+        { WO_BEACON_YELLOW_PINK,    200 }
+    };
+    static map<WorldObjectType, vector<Color> > beacons = {
+        { WO_BEACON_BLUE_YELLOW,    { c_BLUE, c_YELLOW } },
+        { WO_BEACON_YELLOW_BLUE,    { c_YELLOW, c_BLUE } },
+        { WO_BEACON_BLUE_PINK,      { c_BLUE, c_PINK } },
+        { WO_BEACON_PINK_BLUE,      { c_PINK, c_BLUE } },
+        { WO_BEACON_PINK_YELLOW,    { c_PINK, c_YELLOW } },
+        { WO_BEACON_YELLOW_PINK,    { c_YELLOW, c_PINK } }
+    };
+
+    map<Color, vector<Blob> > colorBlobs = {
+        { c_BLUE,       filterBlobs(blobs, c_BLUE, 50)     },
+        { c_YELLOW,     filterBlobs(blobs, c_YELLOW, 50)   },
+        { c_PINK,       filterBlobs(blobs, c_PINK, 50)     },
+        { c_WHITE,      filterBlobs(blobs, c_WHITE, 50)    }
+    };
+
+    for(auto beacon : beacons) {
+        auto& object = vblocks_.world_object->objects_[beacon.first];
+        auto ctop = beacon.second[0];
+        auto cbottom = beacon.second[1];
+
+        pair<Blob, Blob> bblob = findBeaconsOfType(colorBlobs[ctop], colorBlobs[cbottom]);
+
+        if(bblob.first.invalid || bblob.second.invalid) {
+            object.seen = false;
+            continue;
+        }
+
+        double aspect_ratio = (calculateBlobAspectRatio(bblob.first) + calculateBlobAspectRatio(bblob.second)) / 2.0;
+
+        object.imageCenterX = (bblob.first.avgX + bblob.second.avgX) / 2;
+        object.imageCenterY = (bblob.first.avgY + bblob.second.avgY) / 2;
+
+        double bwidth = (bblob.first.dx + bblob.second.dx) / 2.0;
+        double bheight = (bblob.first.dy + bblob.second.dy) / 2.0;
+        double bdistance = (cmatrix_.getWorldDistanceByWidth(bwidth, 110.0) + cmatrix_.getWorldDistanceByHeight(bheight, 100.0)) / 2.0;
+
+        auto position = cmatrix_.getWorldPosition(object.imageCenterX, object.imageCenterY, heights[beacon.first]);
+        object.visionDistance = bdistance;
+        object.visionBearing = cmatrix_.bearing(position);
+        object.seen = true;
+        object.fromTopCamera = (camera_ == Camera::TOP);
+
+        if(aspect_ratio <= OCCLUDED_ASPECT_RATIO_HIGH_BOUND) {
+            object.occluded = true;
+        }
+        else {
+            object.occluded = false;
+        }
+        
+        // cout << "Total AR: " << aspect_ratio << endl;
+        // cout << "AR: " << calculateBlobAspectRatio(bblob.first) << ", " << calculateBlobAspectRatio(bblob.second) << endl;
+        // cout << "density: " << density(bblob.first) << ", " << density(bblob.second) << endl;"
+        cout << "saw " << getName(beacon.first) << " at (" << object.imageCenterX << "," << object.imageCenterY << ") with calculated distance " << object.visionDistance << endl;
+    }
+    cout << endl << endl;
 }

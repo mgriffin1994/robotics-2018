@@ -1,28 +1,32 @@
 #pragma once
 
 #include <vision/ObjectDetector.h>
-#include <vision/ImageProcessor.h>
-#include <vision/VisionBlocks.h>
-#include <vector>
+
+#define ASPECT_RATIO_LOW_BOUND 0.5
+#define ASPECT_RATIO_HIGH_BOUND 2.0
+#define OCCLUDED_ASPECT_RATIO_HIGH_BOUND 0.85
+#define DENSITY_LOW_BOUND 0.4
+
+// #define ENABLE_AREA_SIM_FILTERING
+#define AREA_SIM_LOW_BOUND 0.4
+#define AREA_SIM_HIGH_BOUND 2.0
+
+#define WHITE_BELOW_BEACON_LOW_BOUND 0.5
+#define COLOR_ABOVE_BEACON_HIGH_BOUND 0.25
+#define VERTICAL_SEPARATION_HIGH_BOUND 10
 
 class TextLogger;
-
-#define BEACON_NAME(c) ( \
-    c == WO_BEACON_YELLOW_BLUE ? "YELLOW_BLUE" \
-    : c == WO_BEACON_YELLOW_PINK ? "YELLOW_PINK" \
-    : c == WO_BEACON_PINK_YELLOW ? "PINK_YELLOW" \
-    : c == WO_BEACON_PINK_BLUE ? "PINK_BLUE" \
-    : c == WO_BEACON_BLUE_PINK ? "BLUE_PINK" \
-    : c == WO_BEACON_BLUE_YELLOW ? "BLUE_YELLOW" \
-    : "INVALID")
 
 /// @ingroup vision
 class BeaconDetector : public ObjectDetector {
  public:
   BeaconDetector(DETECTOR_DECLARE_ARGS);
   void init(TextLogger* tl){ textlogger = tl; }
-  void findBeacon(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, WorldObjectType beacon, std::vector<int> &coordinates);
-  void findBeacons(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, HorizonLine &horizon);
+  unsigned char* getSegImg();
+  bool validateInverted(pair<Blob, Blob> &bblob);
+  bool validateUp(pair<Blob, Blob> &bblob);
+  pair<Blob, Blob> findBeaconsOfType(const vector<Blob> &tb, const vector<Blob> &bb);
+  void findBeacons(vector<Blob> &blobs);
  private:
   TextLogger* textlogger;
 };

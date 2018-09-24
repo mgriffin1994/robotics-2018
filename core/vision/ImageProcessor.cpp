@@ -3,10 +3,160 @@
 #include <vision/BeaconDetector.h>
 #include <vision/Logging.h>
 #include <iostream>
-#include <algorithm>
 #include <cmath>
-#include <map>
-#include <math.h>
+
+vector<RLE*> ImageProcessor::getRLERow(int y, int width, int &start_idx) {
+    // handle NULL case
+    int xstep = 1 << iparams_.defaultHorizontalStepScale;
+    int ystep = 1 << iparams_.defaultVerticalStepScale;
+    auto prev_color = getSegImg()[y * width];
+    auto prev_idx = 0;
+    vector<RLE*> encoding;
+    for(int x = 0; x < width; x += xstep) {
+        auto c = getSegImg()[y * width + x];
+        if(c == prev_color)
+            continue;
+        else {
+            encoding.push_back(new RLE(y, prev_idx, x - 1, start_idx, prev_color, ystep));
+            start_idx++;
+            prev_color = c;
+            prev_idx = x;
+        }
+    }
+    encoding.push_back(new RLE(y, prev_idx, width - 1, start_idx, prev_color, ystep));
+    start_idx++;
+
+    return encoding;
+}
+
+int ImageProcessor::getParent(int idx) {
+    if(rle_ptr.find(idx) == rle_ptr.end())
+        return -1;
+    if(rle_ptr[idx]->parent == rle_ptr[idx]->curr)
+        return rle_ptr[idx]->parent;
+    // Path compression
+    int p = getParent(rle_ptr[idx]->parent);
+    rle_ptr[idx]->parent = p;
+    return p;
+}
+
+void ImageProcessor::mergeBlobs(int idx1, int idx2) {
+    int p1 = getParent(idx1);
+    int p2 = getParent(idx2);
+    if(p1 == -1 || p2 == -1) {
+        std::cout << "Unknown RLE" << endl;
+        return;
+    }
+    if(p1 == p2)
+        return;
+    // Union by rank
+    int r1 = rle_ptr[p1]->rank;
+    int r2 = rle_ptr[p2]->rank;
+    if(r1 > r2) {
+        rle_ptr[p2]->parent = p1;
+        rle_ptr[p1]->npixels += rle_ptr[p2]->npixels;
+        rle_ptr[p1]->xi = min(rle_ptr[p1]->xi, rle_ptr[p2]->xi);
+        rle_ptr[p1]->xf = max(rle_ptr[p1]->xf, rle_ptr[p2]->xf);
+        rle_ptr[p1]->yi = min(rle_ptr[p1]->yi, rle_ptr[p2]->yi);
+        rle_ptr[p1]->yf = max(rle_ptr[p1]->yf, rle_ptr[p2]->yf);
+        rle_ptr[p1]->xsum += rle_ptr[p2]->xsum;
+        rle_ptr[p1]->ysum += rle_ptr[p2]->ysum;
+    }
+    else if(r2 > r1) {
+        rle_ptr[p1]->parent = p2;
+        rle_ptr[p2]->npixels += rle_ptr[p1]->npixels;
+        rle_ptr[p2]->xi = min(rle_ptr[p1]->xi, rle_ptr[p2]->xi);
+        rle_ptr[p2]->xf = max(rle_ptr[p1]->xf, rle_ptr[p2]->xf);
+        rle_ptr[p2]->yi = min(rle_ptr[p1]->yi, rle_ptr[p2]->yi);
+        rle_ptr[p2]->yf = max(rle_ptr[p1]->yf, rle_ptr[p2]->yf);
+        rle_ptr[p2]->xsum += rle_ptr[p1]->xsum;
+        rle_ptr[p2]->ysum += rle_ptr[p1]->ysum;
+    }
+    else {
+        rle_ptr[p2]->parent = p1;
+        rle_ptr[p1]->rank++;
+        rle_ptr[p1]->npixels += rle_ptr[p2]->npixels;
+        rle_ptr[p1]->xi = min(rle_ptr[p1]->xi, rle_ptr[p2]->xi);
+        rle_ptr[p1]->xf = max(rle_ptr[p1]->xf, rle_ptr[p2]->xf);
+        rle_ptr[p1]->yi = min(rle_ptr[p1]->yi, rle_ptr[p2]->yi);
+        rle_ptr[p1]->yf = max(rle_ptr[p1]->yf, rle_ptr[p2]->yf);
+        rle_ptr[p1]->xsum += rle_ptr[p2]->xsum;
+        rle_ptr[p1]->ysum += rle_ptr[p2]->ysum;
+    }
+}
+
+void ImageProcessor::mergeEncodings(vector<RLE*> &prev_encoding, vector<RLE*> &encoding) {
+    if(prev_encoding.size() == 0 || encoding.size() == 0)
+        return;
+    int i = 0, j = 0;
+    while(i < prev_encoding.size() && j < encoding.size()) {
+        if(prev_encoding[i]->rcol < encoding[j]->lcol) {
+            i++;
+        }
+        else if(prev_encoding[i]->lcol > encoding[j]->rcol) {
+            j++;
+        }
+        else {
+            // overlap detected, if colors match then merge blobs
+            if(prev_encoding[i]->color == encoding[j]->color) {
+                mergeBlobs(prev_encoding[i]->curr, encoding[j]->curr);
+            }
+            // progress pointers
+            if(prev_encoding[i]->rcol >= encoding[j]->rcol) {
+                j++;
+            }
+            else {
+                i++;
+            }
+        }
+    }
+}
+
+Blob makeBlob(RLE* r) {
+    Blob b;
+    b.xi = r->xi;
+    b.xf = r->xf;
+    b.yi = r->yi;
+    b.yf = r->yf;
+    b.dx = r->xf - r->xi + 1;
+    b.dy = r->yf - r->yi + 1;
+    b.color = static_cast<Color>(r->color);
+    b.lpCount = r->npixels;
+    b.avgX = r->xsum / r->npixels;
+    b.avgY = r->ysum / r->npixels;
+    
+    return b;
+}
+
+void ImageProcessor::calculateBlobs() {
+    // handle NULL case
+    int height = iparams_.height;
+    int width = iparams_.width;
+    int ystep = 1 << iparams_.defaultVerticalStepScale;
+    int loc_idx = 0;
+    rle_ptr.clear();
+    vector<RLE*> prev_encoding;
+
+    for(int y = 0; y < height; y += ystep) {
+        auto encoding = getRLERow(y, width, loc_idx);
+        // initialising the hash table with RLE pointers
+        for(int i = 0; i < encoding.size(); ++i) {
+            assert(rle_ptr.find(encoding[i]->curr) == rle_ptr.end());
+            rle_ptr[encoding[i]->curr] = encoding[i];
+        }
+        mergeEncodings(prev_encoding, encoding);
+        prev_encoding = encoding;
+    }
+    // setting the detected blobs in the vector
+    detected_blobs.clear();
+    for(auto it = rle_ptr.begin(); it != rle_ptr.end(); ++it) {
+        RLE* b = it->second;
+        if(b->parent == b->curr) {
+            detected_blobs.push_back(makeBlob(b));
+        }
+        delete(b);
+    }
+}
 
 ImageProcessor::ImageProcessor(VisionBlocks& vblocks, const ImageParams& iparams, Camera::Type camera) :
   vblocks_(vblocks), iparams_(iparams), camera_(camera), cmatrix_(iparams_, camera)
@@ -37,8 +187,8 @@ unsigned char* ImageProcessor::getImg() {
 //  cv::Mat mat;
 //  int xstep_ = 1 << iparams_.defaultHorizontalStepScale;
 //  int ystep_ = 1 << iparams_.defaultVerticalStepScale;
-//  cv::resize(color_segmenter_->img_grayscale(), mat, cv::Size(), 1.0 / xstep_, 1.0 / ystep_, cv::INTER_NEAREST);
-
+//  cv::resize(color_segmenter_->img_grayscale(), mat, cv::Size(), 1.0 / xstep_, 1.0 / ystep_, cv::INTER_NEAREST); 
+  
 //  cv::imwrite(filepath, mat);
 //}
 
@@ -116,8 +266,10 @@ void ImageProcessor::setCalibration(const RobotCalibration& calibration){
 }
 
 void ImageProcessor::processFrame(){
-  if(vblocks_.robot_state->WO_SELF == WO_TEAM_COACH && camera_ == Camera::BOTTOM) return;
+  // if(vblocks_.robot_state->WO_SELF == WO_TEAM_COACH && camera_ == Camera::BOTTOM) return;
+
   tlog(30, "Process Frame camera %i", camera_);
+
   // Horizon calculation
   tlog(30, "Calculating horizon line");
   updateTransform();
@@ -125,386 +277,105 @@ void ImageProcessor::processFrame(){
   vblocks_.robot_vision->horizon = horizon;
   tlog(30, "Classifying Image: %i", camera_);
   if(!color_segmenter_->classifyImage(color_table_)) return;
+  calculateBlobs();
+  detectBall();
+  if(camera_ == Camera::BOTTOM) return;
 
-  std::map<uint8_t, std::vector<BlobRegion *>> blobs;
-  findBlob(blobs);
-  detectBall(blobs);
-  detectGoal(blobs);
-  beacon_detector_->findBeacons(blobs, horizon);
-
-
-  std::map<uint8_t, std::vector<BlobRegion *>>::iterator it;
-  for(it = blobs.begin(); it != blobs.end(); it++) {
-      std::vector<BlobRegion *> colored_blobs = it->second;
-      for(int i = 0; i < colored_blobs.size(); i++) {
-          delete(colored_blobs[i]);
-      }
-  }
-
-  blobs.clear();
+  detectGoal();
+  beacon_detector_->findBeacons(detected_blobs);
 }
 
-bool checkNearBeacon(BlobRegion *blob1, BlobRegion *blob2, int thresholdx, int thresholdy, int right_threshold, int left_threshold) {
-    int hor_dist = std::abs(blob1->centerx - blob2->centerx);
-    int vert_dist = blob2->centery - blob1->centery; // Not abs because direction matters
+void ImageProcessor::detectBall() {
+    WorldObject* ball = &vblocks_.world_object->objects_[WO_BALL];
+    if(ball->seen)
+        return;
 
-    int right_diff = std::abs(blob1->maxx - blob2->maxx);
-    int left_diff = std::abs(blob1->minx - blob2->minx);
-    int middle_diff = std::abs(blob1->maxy - blob2->miny);
+    BallCandidate* ballc = getBestBallCandidate();
 
-    if ((hor_dist < thresholdx) && (vert_dist > 0) && (vert_dist < thresholdy) && (right_diff < right_threshold)
-        && (left_diff < left_threshold) && (middle_diff < 16)) {
-    //if ((hor_dist < thresholdx) && (vert_dist > 0) && (vert_dist < thresholdy)) {
-        return true;
+    if(ballc == NULL){
+        // cout << "Ball not detected" << endl;
+        ball->seen = false;
+        return;
     }
 
-    return false;
+    ball->imageCenterX = ballc->centerX;
+    ball->imageCenterY = ballc->centerY;
+    ball->radius = ballc->radius;
+
+    Position p = cmatrix_.getWorldPosition(ballc->centerX, ballc->centerY);
+    ball->visionBearing = cmatrix_.bearing(p);
+    ball->visionElevation = cmatrix_.elevation(p);
+    ball->visionDistance = cmatrix_.groundDistance(p);
+
+    cout << "Ball detected at: " << ballc->centerX << "," << ballc->centerY << endl;
+    cout << "Ball pan: " << ball->visionBearing << "   Ball tilt: " << ball->visionElevation << endl;
+    cout << "Ball distance: " << ball->visionDistance << endl << endl;
+
+    ball->seen = true;
+
+    if(camera_ == Camera::BOTTOM)
+        ball->fromTopCamera = false;
+    else
+        ball->fromTopCamera = true;
 }
 
-void ImageProcessor::detectGoal(std::map<uint8_t, std::vector<BlobRegion *>> &blobs) {
-  // Code taken from https://github.com/LARG/robotics-2018/blob/master/documentation/codebase_tutorial.md
-  int imageX, imageY;
-  if(!findGoal(blobs, imageX, imageY)) return; // function defined elsewhere that fills in imageX, imageY by reference
-  WorldObject* goal = &vblocks_.world_object->objects_[WO_UNKNOWN_GOAL]; //josiah wrote code to visualize goals but needs to be unknown_goal
-
-  goal->imageCenterX = imageX;
-  goal->imageCenterY = imageY;
-
-  Position p = cmatrix_.getWorldPosition(imageX, imageY, 250); //Height of center of goal in mm, same code used in BeaconDetector.cpp
-  goal->visionBearing = cmatrix_.bearing(p);
-  goal->visionElevation = cmatrix_.elevation(p);
-  goal->visionDistance = cmatrix_.groundDistance(p);
-  // printf("GOAL: elevation: %lf, distance: %lf\n", goal->visionElevation, goal->visionDistance);
-
-  goal->seen = true;
-  goal->fromTopCamera = camera_ == Camera::TOP;
+void ImageProcessor::findBall(int& imageX, int& imageY) {
 }
 
-void ImageProcessor::detectBall(std::map<uint8_t, std::vector<BlobRegion *>> &blobs){
-  // Code taken from https://github.com/LARG/robotics-2018/blob/master/documentation/codebase_tutorial.md
-  int imageX, imageY, radius;
-  if(!findBall(blobs, imageX, imageY, radius)) return; // function defined elsewhere that fills in imageX, imageY by reference
-  WorldObject* ball = &vblocks_.world_object->objects_[WO_BALL];
+void ImageProcessor::detectGoal() {
+    int imageX = -1, imageY = -1;
+    findGoal(imageX, imageY);
 
-  ball->imageCenterX = imageX;
-  ball->imageCenterY = imageY;
-  ball->radius = radius;
+    WorldObject* goal = &vblocks_.world_object->objects_[WO_UNKNOWN_GOAL];
+    if(imageX == -1 && imageY == -1){
+        goal->seen = false;
+        return;
+    }
 
-  Position p = cmatrix_.getWorldPosition(imageX, imageY, 20);
-  ball->visionBearing = cmatrix_.bearing(p);
-  ball->visionElevation = cmatrix_.elevation(p);
-  ball->visionDistance = cmatrix_.groundDistance(p);
-  // printf("BALL: elevation: %lf, distance: %lf\n", ball->visionElevation, ball->visionDistance);
+    goal->imageCenterX = imageX;
+    goal->imageCenterY = imageY;
 
-  // printf("visionDistance: %f\n", ball->visionDistance);
+    Position p = cmatrix_.getWorldPosition(imageX, imageY);
+    goal->visionBearing = cmatrix_.bearing(p);
+    goal->visionElevation = cmatrix_.elevation(p);
+    goal->visionDistance = cmatrix_.groundDistance(p);
+    goal->fromTopCamera = (camera_ == Camera::TOP);
 
-  ball->seen = true;
-  ball->fromTopCamera = camera_ == Camera::TOP;
+    cout << "Goal pan: " << goal->visionBearing << "   Goal tilt: " << goal->visionElevation << endl;
+    cout << "Goal distance: " << goal->visionDistance << endl << endl;
+    goal->seen = true;
 }
 
-bool compareBlobs(const BlobRegion *a, const BlobRegion *b){
-	return a->blobSize > b->blobSize;
-}
 
-bool dense_sort(const BlobRegion *a, const BlobRegion *b){
-	return a->orange_density > b->orange_density;
-}
-
-//if ball to far away, aspect ratio either below 1 or like 5 or 6 (issue with blob creation? some kind of check?)
-//  probably issue with only detecting the wider runs and not the thin runs on top (possibly issue with removing those 1 and 2 lenght runs below)
-//
-
-
-bool ImageProcessor::findBall(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, int& imageX, int& imageY, int& radius) {
-    imageX = imageY = radius = 0;
-    int vstep = 1 << 1;
-    int hstep = 1 << 2;
-    std::vector<BlobRegion *> *orange_blobs = &blobs[c_ORANGE];
-    std::vector<BlobRegion *> dense_sort_blobs;
-    for (int i = 0; i < orange_blobs->size(); i++) {
-        BlobRegion *blob = (*orange_blobs)[i];
-        HorizonLine horizon = vblocks_.robot_vision->horizon;
-        imageX = (blob->maxx + blob->minx) / 2;
-        imageY = (blob->maxy + blob->miny) / 2;
-
-        if (((camera_ == Camera::TOP) && (blob->blobSize > 50) && (blob->blobSize < 1500) && (horizon.isAbovePoint(imageX, imageY))) ||
-                ((camera_ != Camera::TOP) && (blob->blobSize > 1000))) {
-            //imageX = blob->centerx;
-            //imageY = blob->centery;
-
-
-            // radius = std::max(blob->maxx - blob->minx + hstep, blob->maxy - blob->miny + vstep) / 2;
-            radius = ((blob->maxx - blob->minx + hstep) + (blob->maxy - blob->miny + vstep)) / 4;
-            float aspect_ratio = std::abs((float)(2*(hstep-1) + blob->maxx - blob->minx) / (float)(2*(vstep-1) + blob->maxy-blob->miny));
-
-            auto segImg = getSegImg();
-            int height = blob->maxy - blob->miny;
-            int width = blob->maxx - blob->minx;
-            int num_orange = 0;
-            float orange_density = 0;
-            uint8_t c;
-            int startx, endx, starty, endy;
-            startx = ((blob->minx + width / 3) / hstep) * hstep;
-            endx = ((blob->maxx - width / 3) / hstep) * hstep;
-            starty = ((blob->miny + height / 3) / vstep) * vstep;
-            endy = ((blob->maxy - height / 3) / vstep) * vstep;
-
-
-            for (int i = startx; i < endx; i += hstep){
-                for (int j = starty; j < endy; j += vstep){
-                    c = segImg[j*iparams_.width + i];
-                    if(c == c_ORANGE){
-                        num_orange += hstep * vstep;
-                    }
-                }
-            }
-
-            if(endy == iparams_.height){orange_density = 1.0;}
-            else{orange_density =  ((float)num_orange) / ((float)(height*(blob->maxx - blob->minx)) / 9 + 0.00001);}
-
-            blob->orange_density = orange_density;
-
-            //uint8_t c = segImg [y * iparams_.width + x]; //color at current step
-            //int num_orange_below =
-
-            //TODO add tilt-angle test to see if ball not floating (should help with spurious arm and leg detections)
-            //       Fix these conditions for far distances, overlay flickers
-            // printf("aspect ratio: %lf\n", std::abs((float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)));
-
-
-            // float focal_pix_constant 72.0 * 2.18; //default values correct?
-            // float robo_cam_tilt = vblocks_.joint->getJointValue(HeadPan);
-            // float tilt_angle = (atan((float)(iparams_.height / 2 - imageY) / focal_pix_constant) + robo_cam_tilt) * 180.0 / M_PI;
-
-            //if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
-            //        ((radius > 1) && (radius < 100)) && (blob->density > 0.5)){
-//            if ((std::abs(1.0 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)) < 0.25) &&
-//                    ((radius > 1) && (radius < 100)) && (blob->density > 0.5 && tilt_angle < 1.5)){
-            if ((aspect_ratio > 0.7) && (aspect_ratio < 1.3) && ((radius > 1) && (radius < 150)) && (blob->density > 0.5) && (orange_density > 0.5)){
-                 printf("BALL found: imageX %d, imageY %d, centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf, aspect_ratio = %lf, orange_density = %lf, endy = %d\n", imageX, imageY, blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density, aspect_ratio, orange_density, endy);
-                 //printf("aspect ratio: %lf\n", aspect_ratio);
-
-                dense_sort_blobs.push_back(blob);
-                continue;
-
-            } //else if doesn't reach density and aspect ratio constraints may be occluded (can deal with later)
-            else {
-
-                //printf("NOT FOUND - green density: %lf", green_density);
-                //printf("BALL NOT FOUND: imageX %d, imageY %d, centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d, radius = %d, density = %lf, aspect_ratio = %lf, orange_density = %lf, endy = %d\n", imageX, imageY, blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color, radius, blob->density, std::abs((float)(2*(hstep-1) + blob->maxx - blob->minx) / (float)(2*(vstep-1) + blob->maxy-blob->miny)), orange_density, endy);
-
-            }
+void ImageProcessor::findGoal(int& imageX, int& imageY) {
+    if(getSegImg() == NULL){
+        imageX = -1;
+        imageY = -1;
+        // cout << "Goal not detected" << endl;
+        return;
+    }
+    auto blueBlobs = filterBlobs(detected_blobs, c_BLUE, 2000);
+    sort(blueBlobs.begin(), blueBlobs.end(), BlobCompare);
+    if(blueBlobs.size() > 0) {
+        // cout << "Goal detected at: " << blueBlobs[0].avgX << "\t" << blueBlobs[0].yf << endl;
+        double rectArea = (blueBlobs[0].dx) * (blueBlobs[0].dy);
+        double density = (blueBlobs[0].lpCount / rectArea);
+        if (density > 0.7) {
+            imageX = blueBlobs[0].avgX;
+            imageY = blueBlobs[0].yf;
+        }
+        else {
+            // cout << "Skipping " << blueBlobs[0].avgX << " " << blueBlobs[0].yf << " " << density << endl;
+            imageX = -1;
+            imageY = -1;
         }
     }
-
-    std::sort(dense_sort_blobs.begin(), dense_sort_blobs.end(), dense_sort);
-
-    if (dense_sort_blobs.size() > 0) {
-        BlobRegion *blob = dense_sort_blobs[0];
-
-        imageX = (blob->maxx + blob->minx) / 2;
-        imageY = (blob->maxy + blob->miny) / 2;
-        radius = ((blob->maxx - blob->minx + hstep) + (blob->maxy - blob->miny + vstep)) / 4;
-        return true;
+    else {
+        imageX = -1;
+        imageY = -1;
+        // cout << "Goal not detected" << endl;
     }
-
-    return false;
 }
-
-bool ImageProcessor::findGoal(std::map<uint8_t, std::vector<BlobRegion *>> &blobs, int& imageX, int& imageY) {
-    imageX = imageY = 0;
-    std::vector<BlobRegion *> *blue_blobs = &blobs[c_BLUE];
-    for (int i = 0; i < blue_blobs->size(); i++) {
-        BlobRegion *blob = (*blue_blobs)[i];
-        imageX = (blob->maxx + blob->minx) / 2;
-        imageY = (blob->maxy + blob->miny) / 2;
-        if ((camera_ == Camera::TOP) && (blob->blobSize > 5000)) {
-            //printf("aspect ratio: %lf\n", std::abs((float)(blob->maxx - blob->minx) / (float)(blob->maxy-blob->miny)));
-
-            //printf("GOAL almost found: centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n",
-             //           blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color);
-            if (std::abs(1.7 - (float)(blob->maxx - blob->minx) / (float)(blob->maxy - blob->miny)) < 0.80){
-                // printf("GOAL: centerx %d, centery %d, minx %d, miny %d, maxx %d, maxy %d, numRuns %d, blobSize %d, color %d\n",
-                  //      blob->centerx, blob->centery, blob->minx, blob->miny, blob->maxx, blob->maxy, blob->numRuns, blob->blobSize, blob->color);
-                return true;
-
-            }
-        } else {
-            return false;
-        }
-    }
-    return false;
-}
-
-// Top camera: 1280 x 960
-// Bottom camera: 320 x 240
-void ImageProcessor::findBlob(std::map<uint8_t, std::vector<BlobRegion *>> &blobs) {
-
-    auto segImg = getSegImg();
-    int vstep = 1 << 1;
-    int hstep = 1 << 2;
-
-    std::vector<std::vector<Run *>> all_runs;
-    int headx;
-    std::vector<Run *> hor_runs;
-
-    for(int y = 0; y < iparams_.height; y+=vstep) {
-        for(int x = 0; x < iparams_.width; x+=hstep) {
-            // Retrieve the segmented color of the pixel at (x,y)
-            if(x == 0) {
-                headx = x;
-                continue;
-            }
-
-            uint8_t c = segImg [y * iparams_.width + x]; //color at current step
-            uint8_t old_col = segImg[y * iparams_.width + (x - hstep)]; //color at previous step
-
-            //detect a run whenever the color changes and when just finished a run of orange, blue, yellow, or pink color pixels
-            if((old_col != c && (old_col == c_ORANGE || old_col == c_BLUE || old_col == c_YELLOW || old_col == c_PINK || old_col == c_WHITE))
-                    || (x == iparams_.width - hstep && (c == c_ORANGE || c == c_BLUE || c == c_YELLOW || c == c_PINK || c == c_WHITE))) {
-                 //x will never equal iparams_.width
-                 //need to detect white too, since have to detect white for beacons (can't detect beacon if upside down so need to know where white blob is)
-
-
-                //create Run object when detect color change from orange
-                Run *cur_run_ptr = new Run();
-                cur_run_ptr->start = headx; //head x is either start of row or last time the color changed (below)
-                cur_run_ptr->end = (x == iparams_.width - hstep) ? x : x - hstep; //end of run should be previous x value
-                //if end of row (x == iparams_.width - hstep) end should be the current pixel not the previous one
-
-
-                cur_run_ptr->lead_parent = cur_run_ptr; //start as self pointer
-                cur_run_ptr->color = old_col; //color of run, color before color switched to new value c
-                cur_run_ptr->row = y; //row is current row y
-                cur_run_ptr->blobnum = -1; //default blobnum is -1 (later assigned to index within blobregion vector)
-                cur_run_ptr->possible_parents = {}; //list of non-lead parents (all parents to right of lead_parent)
-
-                //don't look for parents if in first row
-                if(y != 0) {
-                    //look at all runs in previous row and find parents
-                    int row_above = (y/vstep) - 1; // y/step is current iteration through outer loop
-                    for(int i=0; i < all_runs[row_above].size(); i++){
-                        Run *run_ptr = all_runs[row_above][i];
-                        if(run_ptr->end < cur_run_ptr->start){
-                          continue; //ignore runs that are entirely before this one
-                        }
-                        // TODO: detect overlap for two pixels
-                        // TODO: bug - doesn't detect overlap if is wider on both ends
-                        if(run_ptr->color == cur_run_ptr->color &&
-                                ((run_ptr->start >= cur_run_ptr->start && run_ptr->start <= cur_run_ptr->end)
-                                    || (run_ptr->end >= cur_run_ptr->start && run_ptr->end <= cur_run_ptr->end))){
-                            if(cur_run_ptr->lead_parent == cur_run_ptr){ // if current run is pointing to itself
-                                cur_run_ptr->lead_parent = run_ptr->lead_parent;
-                            } else { // occurs if found more than one overlapping run from previous runs above
-                                cur_run_ptr->possible_parents.push_back(run_ptr);
-                            }
-                        }
-                        if(run_ptr->start > cur_run_ptr->end){
-                            break; //stop looking if got to run beyond this one
-                        }
-                    }
-                }
-                hor_runs.push_back(cur_run_ptr);
-            }
-
-            //on any color change, change head of next potential run
-            if (old_col != c) {
-                headx = x;
-            }
-        }
-        all_runs.push_back(hor_runs);
-        hor_runs.clear();
-    }
-
-    //path compression
-    for(int i=0; i < all_runs.size(); i++){
-        for(int j=0; j < all_runs[i].size(); j++){
-            Run *run_ptr = all_runs[i][j];
-            if(run_ptr->possible_parents.size() > 0){
-                for(int k=0; k < run_ptr->possible_parents.size(); k++){
-                    Run *parent_ptr = (run_ptr->possible_parents)[k];
-                    Run *grand_parent_ptr = parent_ptr->lead_parent;
-                    if(grand_parent_ptr->lead_parent == grand_parent_ptr){ //default value, then self pointer
-                        grand_parent_ptr->lead_parent = run_ptr->lead_parent; //change grandparent's lead_parent to my lead_parent
-                    }
-                }
-            }
-        }
-    }
-
-    //create blobs
-    int numblobs = 0;
-    for(int i=0; i < all_runs.size(); i++){
-        for(int j=0; j < all_runs[i].size(); j++){
-            Run *run_ptr = all_runs[i][j];
-
-            //if(run_ptr->end - run_ptr->start + hstep <= 2*hstep){
-              //if very short run don't use it to create new blob or adjust statistics of existing blobs
-              //should reduce the impact of noise and create more accurate blobs
-            //  continue;
-
-            //}
-
-            //create blobs whenever encouter root node or any of it's children
-            Run *parent_ptr = run_ptr->lead_parent;
-            Run *grand_parent_ptr = parent_ptr->lead_parent;
-
-            BlobRegion *blob_ptr;
-            if(grand_parent_ptr->blobnum == -1){ //if my grandparent (root of this blob) hasn't been added yet, create a blob for it
-                blob_ptr = new BlobRegion(); //create new blob in here and not every time outside (was bug)
-
-                //create blob with my statistics, not the root's statistics
-                blob_ptr->centerx = (run_ptr->start + run_ptr->end) / 2; //technically don't know if run ends at end or up to hstep-1 after end, close enough
-                blob_ptr->centery = run_ptr->row;
-                blob_ptr->minx = run_ptr->start;
-                blob_ptr->miny = run_ptr->row;
-                blob_ptr->maxx = run_ptr->end;
-                blob_ptr->maxy = run_ptr->row;
-                blob_ptr->numRuns = 1;
-                blob_ptr->numPixels = (run_ptr->end - run_ptr->start + hstep) * vstep;
-                blob_ptr->blobSize = (blob_ptr->maxx - blob_ptr->minx + hstep) * vstep; //actual size in pixels in original image
-                // TODO: Filter out small blobs
-                blob_ptr->color = run_ptr->color;
-                grand_parent_ptr->blobnum = blobs[run_ptr->color].size();
-                std::vector<BlobRegion *> *colored_blobs = &blobs[run_ptr->color];
-                colored_blobs->push_back(blob_ptr);
-            } else {
-                //find correct relevant blob already existing and update it's values
-                std::vector<BlobRegion *> *colored_blobs = &blobs[run_ptr->color];
-                blob_ptr = (*colored_blobs)[grand_parent_ptr->blobnum];
-                blob_ptr->minx = MIN(blob_ptr->minx, run_ptr->start);
-                blob_ptr->maxx = MAX(blob_ptr->maxx, run_ptr->end);
-                blob_ptr->miny = MIN(blob_ptr->miny, run_ptr->row);
-                blob_ptr->maxy = MAX(blob_ptr->maxy, run_ptr->row);
-                blob_ptr->centerx += (int) ((((run_ptr->start + run_ptr->end) / 2) - blob_ptr->centerx + hstep) / blob_ptr->numRuns);
-                blob_ptr->centery += (int) ((run_ptr->row - blob_ptr->centery + vstep) / blob_ptr->numRuns);
-                blob_ptr->numRuns += 1;
-                blob_ptr->numPixels += (run_ptr->end - run_ptr->start + hstep) * vstep;
-                blob_ptr->blobSize = (blob_ptr->maxx - blob_ptr->minx + hstep) * (blob_ptr->maxy - blob_ptr->miny + vstep); //actual size in pixels in original image
-            }
-        }
-    }
-
-    std::map<uint8_t, std::vector<BlobRegion *>>::iterator it;
-    for(it = blobs.begin(); it != blobs.end(); it++) {
-        std::vector<BlobRegion *> *colored_blobs = &(it->second);
-        for(int i = 0; i < colored_blobs->size(); i++) {
-            // TODO: Filter out sparse blobs
-            (*colored_blobs)[i]->density = ((float) (*colored_blobs)[i]->numPixels / (float) (*colored_blobs)[i]->blobSize);
-        }
-        std::sort(colored_blobs->begin(), colored_blobs->end(), compareBlobs); //should sort in decreasing order of size (in absolute size not downsampled size)
-    }
-
-    for(int i=0; i < all_runs.size(); i++){
-        for(int j=0; j < all_runs[i].size(); j++){
-            all_runs[i][j]->possible_parents.clear();
-            delete(all_runs[i][j]);
-        }
-        all_runs[i].clear();
-    }
-    all_runs.clear();
-}
-
 
 int ImageProcessor::getTeamColor() {
   return vblocks_.robot_state->team_;
@@ -521,12 +392,109 @@ float ImageProcessor::getHeadChange() const {
 }
 
 std::vector<BallCandidate*> ImageProcessor::getBallCandidates() {
-  return std::vector<BallCandidate*>();
+    for(int i = 0; i < ball_candidates.size(); ++i) {
+        delete(ball_candidates[i]);
+    }
+    ball_candidates.clear();
 
+    const int width = iparams_.width;
+    const int height = iparams_.height;
+    const int xstep = (1 << iparams_.defaultHorizontalStepScale);
+    const int ystep = (1 << iparams_.defaultVerticalStepScale);
+    unsigned char* segImg = getSegImg();
+
+    if(segImg == NULL){
+        return ball_candidates;
+    }
+
+    vector<Blob> orangeBlobs;
+
+    if (camera_ == Camera::BOTTOM)
+        orangeBlobs = filterBlobs(detected_blobs, c_ORANGE, 200);
+    else
+        orangeBlobs = filterBlobs(detected_blobs, c_ORANGE, 50);
+
+    sort(orangeBlobs.begin(), orangeBlobs.end(), BlobCompare);
+    for(int i = 0; i < orangeBlobs.size(); ++i) {
+
+        double sideRatio = double(orangeBlobs[i].dx) / (orangeBlobs[i].dy);
+        // cout << sideRatio << endl;
+        if (camera_ == Camera::TOP && (sideRatio < 0.6 || sideRatio > 1.4)) {
+          // std::cout << "Skipping due to side ratio: " << i << " " << sideRatio << endl;
+          // cout << "skipping" << endl;
+          continue;
+        }
+
+        // area ratio
+        double rectArea = (orangeBlobs[i].dx) * (orangeBlobs[i].dy);
+        double density = (orangeBlobs[i].lpCount / rectArea);
+
+        if (density < 0.5) {
+          // std::cout << "Skipping due to density: " << i << " " << density << endl;
+          // cout << "skipping" << endl;
+          continue;
+        }
+
+        int BALL_MAX_AREA_THRESHOLD = camera_ == Camera::BOTTOM ? iparams_.size : 1600;
+
+        if (rectArea > BALL_MAX_AREA_THRESHOLD)
+            continue;
+
+        // filter out candidate if not on green ground
+        int xstart = max(orangeBlobs[i].avgX - orangeBlobs[i].dx * 1, 0);
+        int xend   = min(orangeBlobs[i].avgX + orangeBlobs[i].dx * 1, width - 1);
+        int ystart = min(orangeBlobs[i].avgY + orangeBlobs[i].dy, height - 1);
+        int yend   = min(orangeBlobs[i].avgY + orangeBlobs[i].dy * 2, height - 1);
+        xstart -= xstart % xstep;
+        xend -= xend % xstep;
+        ystart -= ystart % ystep;
+        yend -= yend % ystep;
+
+        double tot_count = 1;
+        double green_count = 0;
+        for(int x=xstart; x <= xend; x += xstep){
+          for(int y=ystart; y <= yend; y += ystep){
+            auto c = static_cast<Color>(segImg[y * width + x]);
+            green_count += (c == c_FIELD_GREEN) ? 1 : 0;
+            tot_count += 1;
+          }
+        }
+        // If the ball is near bottom of image, it can still be green
+        if (green_count / tot_count < 0.2 && (yend - ystart) > 5) {
+          continue;
+        }
+
+        // std::cout << "Not skipping: " << i << " " << sideRatio << " " << areaRatio << endl;
+        // std::cout << "Blob " << i << " " << orangeBlobs[i].avgX << " " << orangeBlobs[i].avgY 
+        //       << " " << orangeBlobs[i].lpCount << " " << orangeBlobs[i].dx << " " << orangeBlobs[i].dy << endl;
+
+        BallCandidate* ballc = new BallCandidate();
+        ballc->centerX = orangeBlobs[i].avgX;
+        ballc->centerY = orangeBlobs[i].avgY;
+        ballc->radius = (orangeBlobs[i].dx + orangeBlobs[i].dy) / 4;
+        ballc->width = orangeBlobs[i].dx;
+        ballc->height = orangeBlobs[i].dy;
+
+        Position p = cmatrix_.getWorldPosition(ballc->centerX, ballc->centerY);
+        ballc->groundDistance = cmatrix_.groundDistance(p);
+        // [TODO] add the confidence value for ball candidates
+        ballc->confidence = 0.0;
+        // [TODO] add the blob on the heap and send
+        ballc->blob = NULL;
+        ballc->valid = true;
+        // [TODO] add the absolute and relative positions
+        ball_candidates.push_back(ballc);
+
+        break;
+    }
+    return ball_candidates;
 }
 
 BallCandidate* ImageProcessor::getBestBallCandidate() {
-  return NULL;
+    getBallCandidates();
+    if(ball_candidates.size() == 0)
+        return NULL;
+    return ball_candidates[0];
 }
 
 void ImageProcessor::enableCalibration(bool value) {

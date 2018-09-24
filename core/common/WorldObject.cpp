@@ -26,13 +26,15 @@ WorldObject::WorldObject() {
   imageCenterY=0;
   fieldLineIndex = -1;
   fromTopCamera = false;
+
+  occluded = false;
 }
 
 WorldObject::WorldObject(WorldObjectType type) : WorldObject() {
   this->type = type;
 }
 
-WorldObject::WorldObject(int type) : WorldObject(static_cast<WorldObjectType>( type)) { 
+WorldObject::WorldObject(int type) : WorldObject(static_cast<WorldObjectType>( type)) {
 }
 
 WorldObject::~WorldObject() {
