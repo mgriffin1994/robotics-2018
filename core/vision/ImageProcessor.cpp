@@ -124,7 +124,7 @@ Blob makeBlob(RLE* r) {
     b.lpCount = r->npixels;
     b.avgX = r->xsum / r->npixels;
     b.avgY = r->ysum / r->npixels;
-    
+
     return b;
 }
 
@@ -187,8 +187,8 @@ unsigned char* ImageProcessor::getImg() {
 //  cv::Mat mat;
 //  int xstep_ = 1 << iparams_.defaultHorizontalStepScale;
 //  int ystep_ = 1 << iparams_.defaultVerticalStepScale;
-//  cv::resize(color_segmenter_->img_grayscale(), mat, cv::Size(), 1.0 / xstep_, 1.0 / ystep_, cv::INTER_NEAREST); 
-  
+//  cv::resize(color_segmenter_->img_grayscale(), mat, cv::Size(), 1.0 / xstep_, 1.0 / ystep_, cv::INTER_NEAREST);
+
 //  cv::imwrite(filepath, mat);
 //}
 
@@ -287,8 +287,8 @@ void ImageProcessor::processFrame(){
 
 void ImageProcessor::detectBall() {
     WorldObject* ball = &vblocks_.world_object->objects_[WO_BALL];
-    if(ball->seen)
-        return;
+//     if(ball->seen)
+//         return;
 
     BallCandidate* ballc = getBestBallCandidate();
 
@@ -302,7 +302,7 @@ void ImageProcessor::detectBall() {
     ball->imageCenterY = ballc->centerY;
     ball->radius = ballc->radius;
 
-    Position p = cmatrix_.getWorldPosition(ballc->centerX, ballc->centerY);
+    Position p = cmatrix_.getWorldPosition(ballc->centerX, ballc->centerY, 32.5);
     ball->visionBearing = cmatrix_.bearing(p);
     ball->visionElevation = cmatrix_.elevation(p);
     ball->visionDistance = cmatrix_.groundDistance(p);
@@ -341,6 +341,7 @@ void ImageProcessor::detectGoal() {
     goal->visionDistance = cmatrix_.groundDistance(p);
     goal->fromTopCamera = (camera_ == Camera::TOP);
 
+    cout << "Goal detected at: " << goal->imageCenterX << "," << goal->imageCenterY << endl;
     cout << "Goal pan: " << goal->visionBearing << "   Goal tilt: " << goal->visionElevation << endl;
     cout << "Goal distance: " << goal->visionDistance << endl << endl;
     goal->seen = true;
@@ -465,7 +466,7 @@ std::vector<BallCandidate*> ImageProcessor::getBallCandidates() {
         }
 
         // std::cout << "Not skipping: " << i << " " << sideRatio << " " << areaRatio << endl;
-        // std::cout << "Blob " << i << " " << orangeBlobs[i].avgX << " " << orangeBlobs[i].avgY 
+        // std::cout << "Blob " << i << " " << orangeBlobs[i].avgX << " " << orangeBlobs[i].avgY
         //       << " " << orangeBlobs[i].lpCount << " " << orangeBlobs[i].dx << " " << orangeBlobs[i].dy << endl;
 
         BallCandidate* ballc = new BallCandidate();
@@ -475,7 +476,7 @@ std::vector<BallCandidate*> ImageProcessor::getBallCandidates() {
         ballc->width = orangeBlobs[i].dx;
         ballc->height = orangeBlobs[i].dy;
 
-        Position p = cmatrix_.getWorldPosition(ballc->centerX, ballc->centerY);
+        Position p = cmatrix_.getWorldPosition(ballc->centerX, ballc->centerY, 32.5);
         ballc->groundDistance = cmatrix_.groundDistance(p);
         // [TODO] add the confidence value for ball candidates
         ballc->confidence = 0.0;
