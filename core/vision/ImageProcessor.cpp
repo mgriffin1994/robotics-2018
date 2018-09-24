@@ -5,6 +5,10 @@
 #include <iostream>
 #include <cmath>
 
+#ifndef MACRO
+    #define MACRO false
+#endif
+
 vector<RLE*> ImageProcessor::getRLERow(int y, int width, int &start_idx) {
     // handle NULL case
     int xstep = 1 << iparams_.defaultHorizontalStepScale;
@@ -307,9 +311,11 @@ void ImageProcessor::detectBall() {
     ball->visionElevation = cmatrix_.elevation(p);
     ball->visionDistance = cmatrix_.groundDistance(p);
 
+#if MACRO
     cout << "Ball detected at: " << ballc->centerX << "," << ballc->centerY << endl;
     cout << "Ball pan: " << ball->visionBearing << "   Ball tilt: " << ball->visionElevation << endl;
     cout << "Ball distance: " << ball->visionDistance << endl << endl;
+#endif
 
     ball->seen = true;
 
@@ -341,9 +347,12 @@ void ImageProcessor::detectGoal() {
     goal->visionDistance = cmatrix_.groundDistance(p);
     goal->fromTopCamera = (camera_ == Camera::TOP);
 
+#if MACRO
     cout << "Goal detected at: " << goal->imageCenterX << "," << goal->imageCenterY << endl;
     cout << "Goal pan: " << goal->visionBearing << "   Goal tilt: " << goal->visionElevation << endl;
     cout << "Goal distance: " << goal->visionDistance << endl << endl;
+#endif
+
     goal->seen = true;
 }
 

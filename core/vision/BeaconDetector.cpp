@@ -4,6 +4,10 @@
 
 using namespace Eigen;
 
+#ifndef MACRO
+    #define MACRO false
+#endif
+
 BeaconDetector::BeaconDetector(DETECTOR_DECLARE_ARGS) : DETECTOR_INITIALIZE {
 }
 
@@ -74,7 +78,7 @@ bool BeaconDetector::validateInverted(pair<Blob, Blob> &bblob) {
     const int height = iparams_.height;
     const int xstep = (1 << iparams_.defaultHorizontalStepScale);
     const int ystep = (1 << iparams_.defaultVerticalStepScale);
-    
+
     int startX = (bblob.first.xi + bblob.second.xi) / 2;
     startX -= (startX % xstep);
     int startY = bblob.second.yf;
@@ -234,11 +238,15 @@ void BeaconDetector::findBeacons(vector<Blob> &blobs) {
         else {
             object.occluded = false;
         }
-        
+
         // cout << "Total AR: " << aspect_ratio << endl;
         // cout << "AR: " << calculateBlobAspectRatio(bblob.first) << ", " << calculateBlobAspectRatio(bblob.second) << endl;
         // cout << "density: " << density(bblob.first) << ", " << density(bblob.second) << endl;"
+#if MACRO
         cout << "saw " << getName(beacon.first) << " at (" << object.imageCenterX << "," << object.imageCenterY << ") with calculated distance " << object.visionDistance << endl;
+#endif
     }
+#if MACRO
     cout << endl << endl;
+#endif
 }
