@@ -15,6 +15,9 @@
 KickModule::KickModule() : state_(Finished), sequence_(NULL) { }
 
 void KickModule::initSpecificModule() {
+  //loads default kick keyframes, if want other types of kicks (specified by different methods in KickRequestBlock.h)
+  // will need to load different yaml files for each kind
+  //TODO for now can just edit default.yaml or change this next line to our new kick yaml file
   auto file = cache_.memory->data_path_ + "/kicks/default.yaml";
   sequence_ = new KeyframeSequence();
   printf("Loading kick sequence from '%s'...", file.c_str());

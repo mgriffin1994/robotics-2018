@@ -291,13 +291,17 @@ void ImageProcessor::processFrame(){
 
 void ImageProcessor::detectBall() {
     WorldObject* ball = &vblocks_.world_object->objects_[WO_BALL];
-//     if(ball->seen)
-//         return;
+    if (ball->seen)
+        return;
 
     BallCandidate* ballc = getBestBallCandidate();
+    bool camera_bottom = camera_ == Camera::BOTTOM;
 
     if(ballc == NULL){
-        // cout << "Ball not detected" << endl;
+#if MACRO
+        cout << "Ball in bottom camera: " << camera_bottom << endl;
+        cout << "\n*****************\nBall not detected\n******************\n" << endl;
+#endif
         ball->seen = false;
         return;
     }
@@ -311,8 +315,10 @@ void ImageProcessor::detectBall() {
     ball->visionElevation = cmatrix_.elevation(p);
     ball->visionDistance = cmatrix_.groundDistance(p);
 
+
 #if MACRO
-    cout << "Ball detected at: " << ballc->centerX << "," << ballc->centerY << endl;
+    cout << "Ball in bottom camera: " << camera_bottom << endl;
+    cout << "Ball detected at: " << ball->imageCenterX << "," << ball->imageCenterY << endl;
     cout << "Ball pan: " << ball->visionBearing << "   Ball tilt: " << ball->visionElevation << endl;
     cout << "Ball distance: " << ball->visionDistance << endl << endl;
 #endif
@@ -420,7 +426,7 @@ std::vector<BallCandidate*> ImageProcessor::getBallCandidates() {
     vector<Blob> orangeBlobs;
 
     if (camera_ == Camera::BOTTOM)
-        orangeBlobs = filterBlobs(detected_blobs, c_ORANGE, 200);
+        orangeBlobs = filterBlobs(detected_blobs, c_ORANGE, 50);
     else
         orangeBlobs = filterBlobs(detected_blobs, c_ORANGE, 50);
 
@@ -450,30 +456,30 @@ std::vector<BallCandidate*> ImageProcessor::getBallCandidates() {
         if (rectArea > BALL_MAX_AREA_THRESHOLD)
             continue;
 
-        // filter out candidate if not on green ground
-        int xstart = max(orangeBlobs[i].avgX - orangeBlobs[i].dx * 1, 0);
-        int xend   = min(orangeBlobs[i].avgX + orangeBlobs[i].dx * 1, width - 1);
-        int ystart = min(orangeBlobs[i].avgY + orangeBlobs[i].dy, height - 1);
-        int yend   = min(orangeBlobs[i].avgY + orangeBlobs[i].dy * 2, height - 1);
-        xstart -= xstart % xstep;
-        xend -= xend % xstep;
-        ystart -= ystart % ystep;
-        yend -= yend % ystep;
-
-        double tot_count = 1;
-        double green_count = 0;
-        for(int x=xstart; x <= xend; x += xstep){
-          for(int y=ystart; y <= yend; y += ystep){
-            auto c = static_cast<Color>(segImg[y * width + x]);
-            green_count += (c == c_FIELD_GREEN) ? 1 : 0;
-            tot_count += 1;
-          }
-        }
-        // If the ball is near bottom of image, it can still be green
-        if (green_count / tot_count < 0.2 && (yend - ystart) > 5) {
-          continue;
-        }
-
+//        // filter out candidate if not on green ground
+//        int xstart = max(orangeBlobs[i].avgX - orangeBlobs[i].dx * 1, 0);
+//        int xend   = min(orangeBlobs[i].avgX + orangeBlobs[i].dx * 1, width - 1);
+//        int ystart = min(orangeBlobs[i].avgY + orangeBlobs[i].dy, height - 1);
+//        int yend   = min(orangeBlobs[i].avgY + orangeBlobs[i].dy * 2, height - 1);
+//        xstart -= xstart % xstep;
+//        xend -= xend % xstep;
+//        ystart -= ystart % ystep;
+//        yend -= yend % ystep;
+//
+//        double tot_count = 1;
+//        double green_count = 0;
+//        for(int x=xstart; x <= xend; x += xstep){
+//          for(int y=ystart; y <= yend; y += ystep){
+//            auto c = static_cast<Color>(segImg[y * width + x]);
+//            green_count += (c == c_FIELD_GREEN) ? 1 : 0;
+//            tot_count += 1;
+//          }
+//        }
+//        // If the ball is near bottom of image, it can still be green
+//        if (green_count / tot_count < 0.2 && (yend - ystart) > 5) {
+//          continue;
+//        }
+//
         // std::cout << "Not skipping: " << i << " " << sideRatio << " " << areaRatio << endl;
         // std::cout << "Blob " << i << " " << orangeBlobs[i].avgX << " " << orangeBlobs[i].avgY
         //       << " " << orangeBlobs[i].lpCount << " " << orangeBlobs[i].dx << " " << orangeBlobs[i].dy << endl;

@@ -7,7 +7,7 @@ from __future__ import absolute_import
 import core
 import cfgstiff
 import math
-from memory import walk_request, joint_commands
+from memory import walk_request, joint_commands, kick_request
 
 walk_max_vel_y = 90
 walk_max_vel_x = 360
@@ -16,6 +16,9 @@ rswalk_max_vel_y = 200.0
 rswalk_max_vel_x = 330.0
 rswalk_max_vel_rot = 0.87
 
+def kick():
+    kick_request.setFwdKick()
+    #for now parameters to setFwdKick don't do anything so use default values
 
 def stand():
     """Request basic bent-knee stand."""
