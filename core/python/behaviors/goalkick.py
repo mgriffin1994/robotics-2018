@@ -18,7 +18,7 @@ time_delay = 0.1
 x_kp = 1e-3
 x_ki = 0.0
 x_kd = 1e-4
-y_kp = 0.0
+y_kp = 0.5
 y_ki = 0.0
 y_kd = 0.0
 theta_kp = 0.5
@@ -34,10 +34,13 @@ max_int_steps = 10 #if want to use all steps, then set to float("inf")
 ball_distance_close = 50
 
 x_error_thresh = 10 #w/in 1 cm of ball_distance_close behind ball
-y_error_thresh = float('inf') #10 change to actual value when testing this
+y_error_thresh = 0.1 # change to actual value when testing this
 theta_error_thresh = math.pi / 10 #change to actual value when testing this
 
 kick_distance = 500 #half meter kick (should be able to do 1 meter kick for extra credit)
+
+top_cam_width = 320
+bot_cam_width = 320
 
 
 class ApproachBall(Node):
@@ -75,8 +78,12 @@ class ApproachBall(Node):
             x_error = ball.visionDistance - ball_distance_close if ball.seen else self.prev_ball_distance - ball_distance_close
             x_error_avg = (x_error + sum(self.x_errors[-moving_avg_samples+1:])) / moving_avg_samples
 
-            ball_center = ball.imageCenterX if ball.seen else self.prev_ball_centerx
-            goal_center = goal.imageCenterX if goal.seen else self.prev_goal_centerx
+            if ball.fromTopCamera:
+                ball_center = ball.imageCenterX / top_cam_width if ball.seen else self.prev_ball_centerx
+            else:
+                ball_center = ball.imageCenterX / bot_cam_width if ball.seen else self.prev_ball_centerx
+
+            goal_center = goal.imageCenterX / top_cam_width if goal.seen else self.prev_goal_centerx
 
             y_error = ball_center - goal_center
             y_error_avg = (y_error + sum(self.y_errors[-moving_avg_samples+1:])) / moving_avg_samples
@@ -85,8 +92,9 @@ class ApproachBall(Node):
             theta_error = ball.visionBearing if ball.seen else self.prev_ball_bearing
             theta_error_avg = (theta_error + sum(self.theta_errors[-moving_avg_samples+1:])) / moving_avg_samples
 
+            print("ball_center ", ball_center, " goal_center ", goal_center)
             print("x error", x_error, "x average error", x_error_avg)
-            #print("y error", y_error, "y average error", y_error_avg)
+            print("y error", y_error, "y average error", y_error_avg)
             # print("theta error", theta_error, "theta average error", theta_error_avg)
 
             ###Try to score goal if aligned
@@ -102,25 +110,24 @@ class ApproachBall(Node):
             #        #what next
             #    return
 
-           ###Compute velocities
+            ##Compute velocities
             time = self.getTime()
 
             prev_x_avg = sum(self.x_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
-            x_vel = x_kp*x_error_avg + (x_kd*((x_error_avg - prev_x_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step)))) if len(self.x_errors) > 1 else 0.0) + x_ki*(max(x_error + sum(self.x_errors), max_int))
+            x_vel = x_kp*x_error_avg + (x_kd*(x_error_avg - prev_x_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step)))) + x_ki*(max(x_error + sum(self.x_errors), max_int))
 
             if ball.visionDistance > 1500 or (self.prev_ball_distance > 1500 and not ball.seen):
                 x_vel = 1.0
 
-
             prev_y_avg = sum(self.y_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
-            y_vel = y_kp*y_error_avg + (y_kd*((y_error_avg - prev_y_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step))))if len(self.y_errors) > 1 else 0.0) + y_ki*(max(y_error + sum(self.y_errors), max_int))
+            y_vel = y_kp*y_error_avg + (y_kd*(y_error_avg - prev_y_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step)))) + y_ki*(max(y_error + sum(self.y_errors), max_int))
             
 
             prev_theta_avg = sum(self.theta_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
-            theta_vel = theta_kp*theta_error_avg + (theta_kd*((theta_error_avg - prev_theta_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step)))) if len(self.theta_errors) > 1 else 0.0) + theta_ki*(max(theta_error + sum(self.theta_errors), max_int))
+            theta_vel = theta_kp*theta_error_avg + (theta_kd*(theta_error_avg - prev_theta_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step)))) + theta_ki*(max(theta_error + sum(self.theta_errors), max_int))
 
-            # print("x velocity", x_vel)
-            #print("y velocity", y_vel)
+            print("x velocity", x_vel)
+            print("y velocity", y_vel)
             # print("theta velocity", y_vel)
 
             ###Add to previous errors
@@ -139,8 +146,8 @@ class ApproachBall(Node):
 
             self.prev_ball_distance = x_error + ball_distance_close
             self.prev_ball_bearing = theta_error
-            self.prev_ball_centerx = ball.imageCenterX if ball.seen else self.prev_ball_centerx
-            self.prev_goal_centerx = goal.imageCenterX if goal.seen else self.prev_goal_centerx
+            self.prev_ball_centerx = ball_center if ball.seen else self.prev_ball_centerx
+            self.prev_goal_centerx = goal_center if goal.seen else self.prev_goal_centerx
 
             ###Start walking via computed velocities
             commands.setWalkVelocity(x_vel, y_vel, theta_vel)
