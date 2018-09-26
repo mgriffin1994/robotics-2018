@@ -64,8 +64,8 @@ class ApproachBall(Node):
         ball = mem_objects.world_objects[core.WO_BALL]
         goal = mem_objects.world_objects[core.WO_UNKNOWN_GOAL]
 
-        # if self.num_frames_not_seen_ball < max_num_frames:
-        if True:
+        if self.num_frames_not_seen_ball < max_num_frames:
+        #if True:
 
             print()
             print("ball camera", ball.fromTopCamera)
@@ -96,7 +96,6 @@ class ApproachBall(Node):
 #             print("ball_center ", ball_center, " goal_center ", goal_center)
 #             print("x error", x_error, "x average error", x_error_avg)
             print("y error", y_error, "   |   ", "y average error", y_error_avg)
-            print("ball_center", ball_center, "   |   ", "goal_center", goal_center)
             # print("theta error", theta_error, "theta average error", theta_error_avg)
 
             ###Try to score goal if aligned
@@ -154,31 +153,32 @@ class ApproachBall(Node):
             ###Start walking via computed velocities
             commands.setWalkVelocity(x_vel, y_vel, theta_vel)
 
-        #else:
-#            if not self.goal_search_done and not self.ball_search_done:
-#                commands.setWalkVelocity(0, 0, math.pi / 3)
-#                    self.goal_search_done = True
-#                    self.prev_goal_centerx = goal.imageCenterX
-#                if ball.seen:
-#                    self.prev_ball_centerx = ball.imageCenterX
-#                    self.prev_ball_bearing = ball.visionBearing
-#                    self.prev_ball_distance = ball.visionDistance
-#                #search for goal - set self.goal_search_done = True once find goal (and set prev values)
-#            if self.goal_search_done and not self.ball_search_done:
-#                direction = self.prev_ball_bearing / abs(self.prev_ball_bearing)
-#                commands.setWalkVelocity(0, 0, direction * math.pi / 3)
-#                if goal.seen:
-#                    self.prev_goal_centerx = goal.imageCenterX
-#                if ball.seen:
-#                    self.prev_ball_centerx = ball.imageCenterX
-#                    self.prev_ball_bearning = ball.visionBearing
-#                    self.prev_ball_distance = ball.visionDistance
-#                    self.ball_search_done = True
-#                #search for ball - set self.ball_search_done = True once find ball (and set prev values)
-#            if self.goal_search_done and self.ball_search_done:
-#                self.num_frames_not_seen_ball = 0
-#                self.goal_search_done = False
-#                self.ball_search_done = False
+        else:
+            #if not self.goal_search_done and not self.ball_search_done:
+            #    commands.setWalkVelocity(0, 0, math.pi / 3)
+            #    if goal.seen:
+            #        self.goal_search_done = True
+            #        self.prev_goal_centerx = goal.imageCenterX / top_cam_width
+            #    if ball.seen:
+            #        self.prev_ball_centerx = ball.imageCenterX / bot_cam_width if not ball.fromTopCamera else ball.imageCenterX / top_cam_width
+            #        self.prev_ball_bearing = ball.visionBearing
+            #        self.prev_ball_distance = ball.visionDistance
+            #    #search for goal - set self.goal_search_done = True once find goal (and set prev values)
+            if not self.ball_search_done:
+                if goal.seen:
+                    self.prev_goal_centerx = goal.imageCenterX / top_cam_width
+                if ball.seen:
+                    self.prev_ball_centerx = ball.imageCenterX / bot_cam_width if not ball.fromTopCamera else ball.imageCenterX / top_cam_width
+                    self.prev_ball_bearning = ball.visionBearing
+                    self.prev_ball_distance = ball.visionDistance
+                    self.ball_search_done = True
+                if not self.ball_search_done:
+                    direction = self.prev_ball_bearing / abs(self.prev_ball_bearing)
+                    commands.setWalkVelocity(0, 0, direction* math.pi / 3)
+                #search for ball - set self.ball_search_done = True once find ball (and set prev values)
+            else:
+                self.num_frames_not_seen_ball = 0
+                self.ball_search_done = False
             # commands.setWalkVelocity(0, 0, 0)
         if not ball.seen:
             self.num_frames_not_seen_ball += 1
