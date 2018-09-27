@@ -33,11 +33,13 @@ max_distance = 2000
 max_int_steps = 10 #if want to use all steps, then set to float("inf")
 ball_distance_close = 50
 
-x_error_thresh = 10 #w/in 1 cm of ball_distance_close behind ball
+x_error_thresh = 150 #w/in 10 cm of ball_distance_close behind ball
 y_error_thresh = 0.1 # change to actual value when testing this
 theta_error_thresh = math.pi / 10 #change to actual value when testing this
 
-kick_distance = 500 #half meter kick (should be able to do 1 meter kick for extra credit)
+vel_thresh = 0.1
+
+kick_distance = 1000 #half meter kick (should be able to do 1 meter kick for extra credit), also goal.visionDistance is to back of goal not front of goal
 
 top_cam_width = 320
 bot_cam_width = 320
@@ -58,19 +60,21 @@ class ApproachBall(Node):
         self.prev_ball_centerx = 0
         self.goal_search_done = False
         self.ball_search_done = False
+        self.start_driving = False
         self.avg_time_step = 0.01
+        self.start_kick_frame = -1
 
     def run(self):
         ball = mem_objects.world_objects[core.WO_BALL]
         goal = mem_objects.world_objects[core.WO_UNKNOWN_GOAL]
 
         if self.num_frames_not_seen_ball < max_num_frames:
-        #if True:
 
             print()
-            print("ball camera", ball.fromTopCamera)
-            print("ball seen", ball.seen)
+            #print("ball camera", ball.fromTopCamera)
+            #print("ball seen", ball.seen)
             print("ball distance", ball.visionDistance)
+            print("goal distance", goal.visionDistance)
             #print("goal seen", goal.seen)
 
 
@@ -85,7 +89,6 @@ class ApproachBall(Node):
 
             goal_center = goal.imageCenterX / top_cam_width if goal.seen else self.prev_goal_centerx
 
-#             y_error = ball_center - goal_center
             y_error = goal_center - ball_center
             y_error_avg = (y_error + sum(self.y_errors[-moving_avg_samples+1:])) / moving_avg_samples
 
@@ -93,47 +96,14 @@ class ApproachBall(Node):
             theta_error = ball.visionBearing if ball.seen else self.prev_ball_bearing
             theta_error_avg = (theta_error + sum(self.theta_errors[-moving_avg_samples+1:])) / moving_avg_samples
 
-#             print("ball_center ", ball_center, " goal_center ", goal_center)
-#             print("x error", x_error, "x average error", x_error_avg)
+            #print("ball_center ", ball_center, " goal_center ", goal_center)
+            print("x error", x_error, "   |   ", "x average error", x_error_avg)
             print("y error", y_error, "   |   ", "y average error", y_error_avg)
-            # print("theta error", theta_error, "theta average error", theta_error_avg)
+            print("theta error", theta_error, "   |   ", "theta average error", theta_error_avg)
 
-            ###Try to score goal if aligned
-            #if close enough to ball, aimed at ball, and aimed at goal try to dribble it forward
-            # otherwise continue with below and try to realign
-            #if abs(x_error_avg) < x_error_thresh and abs(y_error_avg) < y_error_thresh and abs(theta_error_avg) < theta_error_thresh:
-            #    #self.finish()
-            #    if goal.visionDistance > kick_distance:
-            #        #if aligned with ball and goal and far away walk forward
-            #        commands.setWalkVelocity(1.0, 0, 0)
-            #    else:
-            #        commands.kick() #if close enough to goal and aligned try kick
-            #        #what next
-            #    return
-
-            ##Compute velocities
-            time = self.getTime()
-
-            prev_x_avg = sum(self.x_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
-            x_vel = x_kp*x_error_avg + (x_kd*(x_error_avg - prev_x_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step)))) + x_ki*(max(x_error + sum(self.x_errors), max_int))
-
-            if ball.visionDistance > 1500 or (self.prev_ball_distance > 1500 and not ball.seen):
-                x_vel = 1.0
-
-            prev_y_avg = sum(self.y_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
-            y_vel = y_kp*y_error_avg + (y_kd*(y_error_avg - prev_y_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step)))) + y_ki*(max(y_error + sum(self.y_errors), max_int))
-
-
-            prev_theta_avg = sum(self.theta_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
-            theta_vel = theta_kp*theta_error_avg + (theta_kd*(theta_error_avg - prev_theta_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step)))) + theta_ki*(max(theta_error + sum(self.theta_errors), max_int))
-
-#             print("x velocity", x_vel)
-            print("y velocity", y_vel)
-            # print("theta velocity", y_vel)
 
             ###Add to previous errors
 
-            self.prev_time = time
 
             self.x_errors.append(x_error)
             self.y_errors.append(y_error)
@@ -150,20 +120,65 @@ class ApproachBall(Node):
             self.prev_ball_centerx = ball_center if ball.seen else self.prev_ball_centerx
             self.prev_goal_centerx = goal_center if goal.seen else self.prev_goal_centerx
 
-            ###Start walking via computed velocities
-            commands.setWalkVelocity(x_vel, y_vel, theta_vel)
+            time = self.getTime()
 
+            ##Compute velocities
+            prev_x_avg = sum(self.x_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
+            x_vel = x_kp*x_error_avg + (x_kd*(x_error_avg - prev_x_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step)))) + x_ki*(max(x_error + sum(self.x_errors), max_int))
+
+            if ball.visionDistance > 1500 or (self.prev_ball_distance > 1500 and not ball.seen):
+                x_vel = 1.0
+
+            prev_y_avg = sum(self.y_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
+            y_vel = y_kp*y_error_avg + (y_kd*(y_error_avg - prev_y_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step)))) + y_ki*(max(y_error + sum(self.y_errors), max_int))
+
+
+            prev_theta_avg = sum(self.theta_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
+            theta_vel = theta_kp*theta_error_avg + (theta_kd*(theta_error_avg - prev_theta_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step)))) + theta_ki*(max(theta_error + sum(self.theta_errors), max_int))
+
+            print("x velocity", x_vel, x_error_avg, (x_error_avg - prev_x_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step))))
+            print("y velocity", y_vel)
+            print("theta velocity", y_vel)
+
+
+            ###Try to score goal if aligned, otherwise walk towards being aligned
+
+            #if close enough to ball, aimed at ball, and aimed at goal try to dribble it forward
+            # otherwise continue with below and try to realign
+
+
+            if ((abs(x_error_avg) < x_error_thresh and abs(y_error_avg) < y_error_thresh and abs(theta_error_avg) < theta_error_thresh) or (self.start_kick_frame != -1)):
+            #if ((abs(x_vel) < vel_thresh and abs(y_vel) < vel_thresh and abs(theta_vel) < vel_thresh) or (self.start_kick_frame != -1)):
+                print('Within threshold')
+                if goal.visionDistance > kick_distance:
+                    #self.start_driving = True
+                    #if aligned with ball and goal and far away walk forward
+                    commands.setWalkVelocity(1.0, 0, 0)
+                    #then if become unaligned again next time switch back to pid (until close enough to goal)
+                else:
+                    commands.setWalkVelocity(0, 0, 0) #continuing to drive even within kick_distance???
+                    #self.start_kick_frame = 1 #TODO remove, while testing once get aligned and within kick_distance stand still forever
+                    #self.start_driving = False
+
+                    #    #if close enough to goal and either aligned or have started kicking already (to make sure kick gets called) run this code
+                #    #TODO see if just running commands.kick() is fine
+                #    self.start_kick_frame = self.getFrames() if self.start_kick_frame == -1 else self.start_kick_frame       
+                #    if self.getFrames() - self.start_kick_frame <= 3: 
+                #        commands.kick() #if close enough to goal and aligned try kick
+                #    if self.getFrames() - self.start_kick_frame > 10 and not memory.kick_request.kick_running_:
+                #        self.start_kick_frame = -1
+
+            else:
+
+                ##Start walking
+                #never approach the ball when within kick_distance, only kick
+                #if goal.visionDistance > kick_distance:
+                commands.setWalkVelocity(x_vel, y_vel, theta_vel)
+        
+            self.prev_time = time
+        
         else:
-            #if not self.goal_search_done and not self.ball_search_done:
-            #    commands.setWalkVelocity(0, 0, math.pi / 3)
-            #    if goal.seen:
-            #        self.goal_search_done = True
-            #        self.prev_goal_centerx = goal.imageCenterX / top_cam_width
-            #    if ball.seen:
-            #        self.prev_ball_centerx = ball.imageCenterX / bot_cam_width if not ball.fromTopCamera else ball.imageCenterX / top_cam_width
-            #        self.prev_ball_bearing = ball.visionBearing
-            #        self.prev_ball_distance = ball.visionDistance
-            #    #search for goal - set self.goal_search_done = True once find goal (and set prev values)
+
             if not self.ball_search_done:
                 if goal.seen:
                     self.prev_goal_centerx = goal.imageCenterX / top_cam_width
@@ -179,7 +194,6 @@ class ApproachBall(Node):
             else:
                 self.num_frames_not_seen_ball = 0
                 self.ball_search_done = False
-            # commands.setWalkVelocity(0, 0, 0)
         if not ball.seen:
             self.num_frames_not_seen_ball += 1
 

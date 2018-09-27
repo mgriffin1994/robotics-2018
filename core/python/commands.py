@@ -17,6 +17,7 @@ rswalk_max_vel_x = 330.0
 rswalk_max_vel_rot = 0.87
 
 def kick():
+    walk_request.noWalk()
     kick_request.setFwdKick()
     #for now parameters to setFwdKick don't do anything so use default values
 
