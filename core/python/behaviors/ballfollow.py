@@ -39,3 +39,4 @@ class Playing(LoopingStateMachine):
         # sit = pose.Sit()
         # self.add_transition(ball_turn, T(0.2), ball_turn)
         self.add_transition(ball_turn, T(time_delay), ball_turn)
+        self.add_transition(ball_turn, T(0.3), ball_turn)
