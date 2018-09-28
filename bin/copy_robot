@@ -4,7 +4,7 @@ import sys, subprocess, os
 
 baseIP = '10.202.16.%s'
 validInterfaces = ['nao', 'motion', 'vision', 'python', 'memory_test',
-                   'scripts', 'color_table', 'configs', 'time']
+                   'scripts', 'color_table', 'configs', 'time', 'kick']
 
 # All interfaces is the most common type of copy. Updates most code on the robot
 # but does not change color tables, start up and stop scripts, and time.
@@ -214,6 +214,11 @@ def main(ip,interfaces,options,robotID):
         print('data/kicks/*')
         path = 'data/kicks/'
         doFileOperations(ip, '../%s*' % path, path, options)
+
+    elif interface == 'kick':
+      print('data/kicks/*')
+      path = 'data/kicks/'
+      doFileOperations(ip, '../%s*' % path, path, options)
 
     elif interface == 'time':
       cmd = '../install/setup_robot --date --ip %s' % ip
