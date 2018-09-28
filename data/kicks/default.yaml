@@ -99,33 +99,6 @@ keyframes:
 #      RElbowYaw: -0.964409023590334
 #      RElbowRoll: -1.93601706636553
 
-### old lean forward (not used in the new solution)
-#  - name: lean forward
-#    frames: 100
-#    joints:
-#      HeadYaw: 0.612831876036623
-#      HeadPitch: -22.4978775187745
-#      LHipYawPitch: 0.00240422652094079
-#      LHipRoll: 0.0902950983148785
-#      LHipPitch: -36.6072857625849
-#      LKneePitch: 49.8321981938704
-#      LAnklePitch: -24.6999850874207
-#      LAnkleRoll: -0.0902950983148785
-#      RHipYawPitch: 0.00240422652094079
-#      RHipRoll: 0.00240422652094079
-#      RHipPitch: -36.6999850874207
-#      RKneePitch: 49.7491294354963
-#      RAnklePitch: -24.7830675061728
-#      RAnkleRoll: 0.00240422652094079
-#      LShoulderPitch: -88.7682368891677
-#      LShoulderRoll: 8.25941883060334
-#      LElbowYaw: -0.79343573304434
-#      LElbowRoll: -1.49175425435396
-#      RShoulderPitch: -89.3882951051451
-#      RShoulderRoll: 8.17633726562491
-#      RElbowYaw: -0.964409023590334
-#      RElbowRoll: -1.93601706636553
-
 ### new left lean
 ### this doesn't break anything
   - name: left lean
@@ -153,33 +126,6 @@ keyframes:
       RShoulderRoll: 8.17633726562491
       RElbowYaw: -0.964409023590334
       RElbowRoll: -1.93601706636553
-
-### old lean left
-#  - name: lean left
-#    frames: 300
-#    joints:
-#      HeadYaw: 0.612831876036623
-#      HeadPitch: -22.4978775187745
-#      LHipYawPitch: 0.00240422652094079
-#      LHipRoll: 10.0902950983148785
-#      LHipPitch: -36.6072857625849
-#      LKneePitch: 49.8321981938704
-#      LAnklePitch: -24.6999850874207
-#      LAnkleRoll: -0.0902950983148785
-#      RHipYawPitch: 0.00240422652094079
-#      RHipRoll: -10.00240422652094079
-#      RHipPitch: -36.6999850874207
-#      RKneePitch: 49.7491294354963
-#      RAnklePitch: -24.7830675061728
-#      RAnkleRoll: 0.00240422652094079
-#      LShoulderPitch: -88.7682368891677
-#      LShoulderRoll: 8.25941883060334
-#      LElbowYaw: -0.79343573304434
-#      LElbowRoll: -1.49175425435396
-#      RShoulderPitch: -89.3882951051451
-#      RShoulderRoll: 8.17633726562491
-#      RElbowYaw: -0.964409023590334
-#      RElbowRoll: -1.93601706636553
 
 ### new kick
 ### this doesn't break anything
