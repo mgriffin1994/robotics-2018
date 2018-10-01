@@ -156,17 +156,17 @@ class ApproachBall(Node):
                     commands.setWalkVelocity(1.0, 0, 0)
                     #then if become unaligned again next time switch back to pid (until close enough to goal)
                 else:
-                    commands.setWalkVelocity(0, 0, 0) #continuing to drive even within kick_distance???
+                    # commands.setWalkVelocity(0, 0, 0) #continuing to drive even within kick_distance???
                     #self.start_kick_frame = 1 #TODO remove, while testing once get aligned and within kick_distance stand still forever
                     #self.start_driving = False
 
                     #    #if close enough to goal and either aligned or have started kicking already (to make sure kick gets called) run this code
                 #    #TODO see if just running commands.kick() is fine
-                #    self.start_kick_frame = self.getFrames() if self.start_kick_frame == -1 else self.start_kick_frame       
-                #    if self.getFrames() - self.start_kick_frame <= 3: 
-                #        commands.kick() #if close enough to goal and aligned try kick
-                #    if self.getFrames() - self.start_kick_frame > 10 and not memory.kick_request.kick_running_:
-                #        self.start_kick_frame = -1
+                    self.start_kick_frame = self.getFrames() if self.start_kick_frame == -1 else self.start_kick_frame       
+                    if self.getFrames() - self.start_kick_frame <= 3: 
+                        commands.kick() #if close enough to goal and aligned try kick
+                    if self.getFrames() - self.start_kick_frame > 10 and not memory.kick_request.kick_running_:
+                        self.start_kick_frame = -1
 
             else:
 
