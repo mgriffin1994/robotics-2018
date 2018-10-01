@@ -26,7 +26,7 @@ keyframes:
       RElbowYaw: -0.964409023590334
       RElbowRoll: -1.93601706636553
   - name: normal stand
-    frames: 50
+    frames: 100
     joints:
       HeadYaw: 0.612831876036623
       HeadPitch: -22.4978775187745
