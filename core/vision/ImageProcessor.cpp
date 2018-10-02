@@ -426,9 +426,9 @@ std::vector<BallCandidate*> ImageProcessor::getBallCandidates() {
     vector<Blob> orangeBlobs;
 
     if (camera_ == Camera::BOTTOM)
-        orangeBlobs = filterBlobs(detected_blobs, c_ORANGE, 50);
+        orangeBlobs = filterBlobs(detected_blobs, c_ORANGE, 200);
     else
-        orangeBlobs = filterBlobs(detected_blobs, c_ORANGE, 50);
+        orangeBlobs = filterBlobs(detected_blobs, c_ORANGE, 75);
 
     sort(orangeBlobs.begin(), orangeBlobs.end(), BlobCompare);
     for(int i = 0; i < orangeBlobs.size(); ++i) {
