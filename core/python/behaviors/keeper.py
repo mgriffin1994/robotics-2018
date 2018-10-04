@@ -8,9 +8,12 @@ import core
 import commands
 import mem_objects
 from state_machine import Node, S, T, LoopingStateMachine
+from memory import joint_commands
 import UTdebug
 
 
+# TODO: change shoulder rolls/pitches with joint_commands.setJointAngle(...)
+#		Use enum from common/RobotInfo.h
 class BlockLeft(Node):
     def run(self):
         UTdebug.log(15, "Blocking left")
@@ -30,6 +33,7 @@ class Blocker(Node):
     def run(self):
         ball = mem_objects.world_objects[core.WO_BALL]
         commands.setHeadPan(ball.bearing, 0.1)
+		# TODO: Use velocity vector to determine if goal or not
         if ball.distance < 500:
             UTdebug.log(15, "Ball is close, blocking!")
             if ball.bearing > 30 * core.DEG_T_RAD:
