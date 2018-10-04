@@ -14,11 +14,15 @@ Point2D LocalizationBlock::getBallPosition() {
 }
 
 Point2D LocalizationBlock::getBallVel() {
-  return Point2D(/* fill this in */);
+  return Point2D(state[2], state[3]);
 }
 
-Matrix2f LocalizationBlock::getBallCov() {
-  return covariance.block<2,2>(0,0);
+float LocalizationBlock::getFriction() {
+  return state[4];
+}    
+
+Matrix<float, STATE_SIZE, STATE_SIZE> LocalizationBlock::getBallCov() {
+  return covariance.block<STATE_SIZE,STATE_SIZE>(0,0);
 }
 /*
 void LocalizationBlock::serialize(StreamBuffer& buffer, std::string) {
