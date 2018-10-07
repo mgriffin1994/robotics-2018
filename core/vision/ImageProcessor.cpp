@@ -426,17 +426,19 @@ std::vector<BallCandidate*> ImageProcessor::getBallCandidates() {
     vector<Blob> orangeBlobs;
 
     if (camera_ == Camera::BOTTOM)
-        orangeBlobs = filterBlobs(detected_blobs, c_ORANGE, 50);
+        orangeBlobs = filterBlobs(detected_blobs, c_ORANGE, 200);
     else
-        orangeBlobs = filterBlobs(detected_blobs, c_ORANGE, 50);
+        // orangeBlobs = filterBlobs(detected_blobs, c_ORANGE, 75); // No false positives but max detect distance 170cm
+        orangeBlobs = filterBlobs(detected_blobs, c_ORANGE, 60);
 
     sort(orangeBlobs.begin(), orangeBlobs.end(), BlobCompare);
     for(int i = 0; i < orangeBlobs.size(); ++i) {
 
+
         double sideRatio = double(orangeBlobs[i].dx) / (orangeBlobs[i].dy);
-        // cout << sideRatio << endl;
+
         if (camera_ == Camera::TOP && (sideRatio < 0.6 || sideRatio > 1.4)) {
-          // std::cout << "Skipping due to side ratio: " << i << " " << sideRatio << endl;
+           // std::cout << "Skipping due to side ratio: " << i << " " << sideRatio << endl;
           // cout << "skipping" << endl;
           continue;
         }
@@ -453,8 +455,10 @@ std::vector<BallCandidate*> ImageProcessor::getBallCandidates() {
 
         int BALL_MAX_AREA_THRESHOLD = camera_ == Camera::BOTTOM ? iparams_.size : 1600;
 
-        if (rectArea > BALL_MAX_AREA_THRESHOLD)
+        if (rectArea > BALL_MAX_AREA_THRESHOLD) {
+            // cout << "skipping due to max_area_threshold" << endl;
             continue;
+        }
 
 //        // filter out candidate if not on green ground
 //        int xstart = max(orangeBlobs[i].avgX - orangeBlobs[i].dx * 1, 0);

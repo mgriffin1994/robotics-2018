@@ -77,6 +77,7 @@ void LocalizationModule::movePlayer(const Point2D& position, float orientation) 
 }
 
 void LocalizationModule::processFrame() {
+  double currTime = double(clock());
   auto& ball = cache_.world_object->objects_[WO_BALL];
   auto& self = cache_.world_object->objects_[cache_.robot_state->WO_SELF];
 
@@ -84,6 +85,8 @@ void LocalizationModule::processFrame() {
   // and store it back into world objects
   auto sloc = cache_.localization_mem->player_;
   self.loc = sloc;
+
+  float friction;
     
   //TODO: modify this block to use your Kalman filter implementation
   if(ball.seen) {
@@ -97,17 +100,24 @@ void LocalizationModule::processFrame() {
     ball.loc = globalBall;
     ball.distance = ball.visionDistance;
     ball.bearing = ball.visionBearing;
-    //ball.absVel = fill this in
+    ball.absVel = Point2D((ball.loc.x - prevPoint.x) / (currTime - prevTime), 
+						  (ball.loc.y - prevPoint.y) / (currTime - prevTime));
 
     // Update the localization memory objects with localization calculations
     // so that they are drawn in the World window
     cache_.localization_mem->state[0] = ball.loc.x;
     cache_.localization_mem->state[1] = ball.loc.y;
-    cache_.localization_mem->covariance = decltype(cache_.localization_mem->covariance)::Identity() * 10000;
+	cache_.localization_mem->state[2] = ball.absVel.x;
+	cache_.localization_mem->state[3] = ball.absVel.y;
+	cache_.localization_mem->state[4] = friction;
+	cache_.localization_mem->covariance = decltype(cache_.localization_mem->covariance)::Identity() * 10000;
+	// TODO: Change the above lines to get output of Kalman filter
   } 
   //TODO: How do we handle not seeing the ball?
   else {
     ball.distance = 10000.0f;
     ball.bearing = 0.0f;
   }
+
+  prevTime = currTime;
 }

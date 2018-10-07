@@ -3,6 +3,7 @@
 #include <Module.h>
 #include <memory/MemoryCache.h>
 #include <localization/LocalizationParams.h>
+#include <ctime>
 
 class ParticleFilter;
 class Point2D;
@@ -28,4 +29,9 @@ class LocalizationModule : public Module {
     TextLogger*& tlogger_;
     LocalizationParams params_;
     ParticleFilter* pfilter_;
+
+  private:
+	Point2D prevPoint = Point2D(0.0, 0.0);
+	double prevTime = 0.0;
+	
 };

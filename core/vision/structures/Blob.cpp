@@ -13,6 +13,8 @@ vector<Blob> filterBlobs(vector<Blob> &blobs, Color color, int size=0) {
     for(int i = 0; i < blobs.size(); ++i) {
         if(blobs[i].color != color)
             continue;
+//        if (blobs[i].color == c_ORANGE)
+//            cout << "blob size " << blobs[i].lpCount << " and color " << blobs[i].color << endl;
         if(blobs[i].lpCount < size)
             continue;
         filtered.push_back(blobs[i]);
