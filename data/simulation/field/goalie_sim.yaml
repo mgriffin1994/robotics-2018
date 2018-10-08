@@ -10,64 +10,14 @@ objects:
   gtconfig:
     placements_:
       0:
-        x: 266.315
-        y: -81.6057
+        x: 250
+        y: 0
         orientation: 0
         height: 0
       1:
-        x: 1339.37
-        y: -245.091
-        orientation: -61
-        height: 0
-      2:
-        x: 346.623
-        y: -1219
+        x: -1250
+        y: 0
         orientation: 0
-        height: 0
-      3:
-        x: 1459.26
-        y: 193
-        orientation: 0
-        height: 0
-      4:
-        x: 203.153
-        y: 32
-        orientation: 0
-        height: 0
-      5:
-        x: 237.127
-        y: -1246
-        orientation: 127
-        height: 0
-      6:
-        x: 718.414
-        y: 1452
-        orientation: 0
-        height: 0
-      7:
-        x: 774.478
-        y: 299
-        orientation: 0
-        height: 0
-      8:
-        x: 830.025
-        y: 838
-        orientation: 0
-        height: 0
-      9:
-        x: 1084.5
-        y: -1122
-        orientation: 0
-        height: 0
-      10:
-        x: 1245.86
-        y: -237
-        orientation: 0
-        height: 0
-      11:
-        x: 97.2588
-        y: -20.8391
-        orientation: -127
         height: 0
   bconfig:
     placements_:

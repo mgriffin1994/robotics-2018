@@ -86,9 +86,9 @@ void LocalizationModule::processFrame() {
   auto sloc = cache_.localization_mem->player_;
   self.loc = sloc;
 
-  float friction;
+  float friction = 0.5;
+  float noise = 0.1;
     
-  //TODO: modify this block to use your Kalman filter implementation
   if(ball.seen) {
     // Compute the relative position of the ball from vision readings
     auto relBall = Point2D::getPointFromPolar(ball.visionDistance, ball.visionBearing);
@@ -96,28 +96,83 @@ void LocalizationModule::processFrame() {
     // Compute the global position of the ball based on our assumed position and orientation
     auto globalBall = relBall.relativeToGlobal(self.loc, self.orientation);
 
+    double timeDelta = (currTime - prevTime) + 0.000001;
+
+
     // Update the ball in the WorldObject block so that it can be accessed in python
     ball.loc = globalBall;
     ball.distance = ball.visionDistance;
     ball.bearing = ball.visionBearing;
-    ball.absVel = Point2D((ball.loc.x - prevPoint.x) / (currTime - prevTime), 
-						  (ball.loc.y - prevPoint.y) / (currTime - prevTime));
+    ball.absVel = Point2D((ball.loc.x - prevPoint.x) / timeDelta, 
+						  (ball.loc.y - prevPoint.y) / timeDelta);
+
+  
+
+    Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign> zk = Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign>::Zero();
+    zk[0] = ball.loc.x;
+    zk[1] = ball.loc.y;
+    zk[2] = ball.absVel.x;
+    zk[3] = ball.absVel.y;
+    zk[4] = friction;
+
+
+
+    Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign> xk = cache_.localization_mem->state;
+    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Pk = cache_.localization_mem->covariance;
+
+    Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign> xkBar = Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign>::Zero();
+    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> PkBar = Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign>::Zero();
+    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> eye = Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign>::Identity();
+    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Ak = Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign>::Identity();
+
+    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Rk = Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign>::Identity();
+    Rk *= noise;
+
+    Ak(0, 2) = timeDelta;
+    Ak(1, 3) = timeDelta;
+    Ak(2, 2) = xk[4];
+    Ak(2, 4) = xk[2];
+    Ak(3, 3) = xk[4];
+    Ak(3, 4) = xk[3];
+
+
+    xkBar[0] = xk[0] + xk[2]*timeDelta;
+    xkBar[1] = xk[1] + xk[3]*timeDelta;
+    xkBar[2] = xk[2]*xk[4];
+    xkBar[3] = xk[3]*xk[4];
+    xkBar[4] = xk[4];
+
+
+
+    PkBar = Ak*Pk*Ak.transpose();
+
+    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Kk = PkBar*((PkBar + Rk).inverse());
+    xk = xkBar + Kk*(zk - xkBar);
+    Pk = (eye - Kk)*PkBar;
+
 
     // Update the localization memory objects with localization calculations
     // so that they are drawn in the World window
-    cache_.localization_mem->state[0] = ball.loc.x;
-    cache_.localization_mem->state[1] = ball.loc.y;
-	cache_.localization_mem->state[2] = ball.absVel.x;
-	cache_.localization_mem->state[3] = ball.absVel.y;
-	cache_.localization_mem->state[4] = friction;
-	cache_.localization_mem->covariance = decltype(cache_.localization_mem->covariance)::Identity() * 10000;
-	// TODO: Change the above lines to get output of Kalman filter
+    cache_.localization_mem->state = xk;
+  	cache_.localization_mem->covariance = Pk;
+
+
+    zk.resize(0, 0);
+    xk.resize(0, 0);
+    Pk.resize(0, 0);
+    xkBar.resize(0, 0);
+    PkBar.resize(0, 0);
+    eye.resize(0, 0);
+    Ak.resize(0, 0);
+    Rk.resize(0, 0);
+    Kk.resize(0, 0);
+
   } 
   //TODO: How do we handle not seeing the ball?
   else {
     ball.distance = 10000.0f;
     ball.bearing = 0.0f;
   }
-
+  prevPoint = ball.loc;
   prevTime = currTime;
 }

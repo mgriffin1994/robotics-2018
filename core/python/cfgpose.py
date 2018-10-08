@@ -2076,6 +2076,90 @@ blockleft[core.LShoulderRoll]= 27
 blockleft[core.LElbowYaw] = -119
 blockleft[core.LElbowRoll] = -4
 
+
+
+armLeft = dict()
+armLeft[core.HeadYaw] = 0.0
+armLeft[core.HeadPitch] = 0
+armLeft[core.LShoulderPitch] = -90
+armLeft[core.LShoulderRoll] = 45
+armLeft[core.LElbowYaw] = 0
+armLeft[core.LElbowRoll] = 0
+armLeft[core.LHipYawPitch] = -5
+armLeft[core.LHipPitch] = -46.5
+armLeft[core.LHipRoll] = -1.0 * 0
+armLeft[core.LKneePitch] = 125
+armLeft[core.LAnklePitch] = -70
+armLeft[core.LAnkleRoll] = -1.0 * 0
+armLeft[core.RHipYawPitch] = -5
+armLeft[core.RHipPitch] = -46.5
+armLeft[core.RHipRoll] = 0
+armLeft[core.RKneePitch] = 125
+armLeft[core.RAnklePitch] = -70
+armLeft[core.RAnkleRoll] = 0
+armLeft[core.RShoulderPitch] = -90
+armLeft[core.RShoulderRoll] = 0
+armLeft[core.RElbowYaw] = 0
+armLeft[core.RElbowRoll] = 0
+
+armRight = dict()
+armRight[core.HeadYaw] = 0.0
+armRight[core.HeadPitch] = 0
+armRight[core.LShoulderPitch] = -90
+armRight[core.LShoulderRoll] = 0
+armRight[core.LElbowYaw] = 0
+armRight[core.LElbowRoll] = 0
+armRight[core.LHipYawPitch] = -5
+armRight[core.LHipPitch] = -46.5
+armRight[core.LHipRoll] = -1.0 * 0
+armRight[core.LKneePitch] = 125
+armRight[core.LAnklePitch] = -70
+armRight[core.LAnkleRoll] = -1.0 * 0
+armRight[core.RHipYawPitch] = -5
+armRight[core.RHipPitch] = -46.5
+armRight[core.RHipRoll] = 0
+armRight[core.RKneePitch] = 125
+armRight[core.RAnklePitch] = -70
+armRight[core.RAnkleRoll] = 0
+armRight[core.RShoulderPitch] = -90
+armRight[core.RShoulderRoll] = 45
+armRight[core.RElbowYaw] = 0
+armRight[core.RElbowRoll] = 0
+
+armsForward = dict()
+armsForward[core.HeadYaw] = 0.0
+armsForward[core.HeadPitch] = 0
+armsForward[core.LShoulderPitch] = 0.0
+armsForward[core.LShoulderRoll] = 0
+armsForward[core.LElbowYaw] = 0
+armsForward[core.LElbowRoll] = 0
+armsForward[core.LHipYawPitch] = -5
+armsForward[core.LHipPitch] = -46.5
+armsForward[core.LHipRoll] = -1.0 * 0
+armsForward[core.LKneePitch] = 125
+armsForward[core.LAnklePitch] = -70
+armsForward[core.LAnkleRoll] = -1.0 * 0
+armsForward[core.RHipYawPitch] = -5
+armsForward[core.RHipPitch] = -46.5
+armsForward[core.RHipRoll] = 0
+armsForward[core.RKneePitch] = 125
+armsForward[core.RAnklePitch] = -70
+armsForward[core.RAnkleRoll] = 0
+armsForward[core.RShoulderPitch] = 0.0
+armsForward[core.RShoulderRoll] = 0
+armsForward[core.RElbowYaw] = 0
+armsForward[core.RElbowRoll] = 0
+
+
+
+
+
+
+
+
+
+
+
 keeperSaveArmForward = dict()
 keeperSaveArmForward[core. HeadYaw ] = 1.84331779282 
 keeperSaveArmForward[core. HeadPitch ] = -0.876518176188 

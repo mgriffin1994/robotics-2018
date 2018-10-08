@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Eigen/Core>
+#include <Eigen/Dense>
 #include <memory/MemoryBlock.h>
 #include <math/Geometry.h>
 #include <localization/Particle.h>
@@ -54,7 +54,7 @@ DECLARE_INTERNAL_SCHEMA(struct LocalizationBlock : public MemoryBlock {
 
     Point2D getBallPosition();
     Point2D getBallVel();
-    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE> getBallCov();
+    Eigen::Matrix<float, 2, 2> getBallCov();
     float getFriction();
     std::vector<Particle> particles;
     //SCHEMA_FIELD(std::vector<Particle> particles);
