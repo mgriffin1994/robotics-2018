@@ -87,8 +87,8 @@ void LocalizationModule::processFrame() {
   self.loc = sloc;
 
   float friction = 0.5;
-  float noiseR = 0.1;
-  float noiseQ = 0.1;
+  float noiseR = 0.05;
+  float noiseQ = 0.05;
 
     
   if(ball.seen) {
@@ -98,16 +98,31 @@ void LocalizationModule::processFrame() {
     // Compute the global position of the ball based on our assumed position and orientation
     auto globalBall = relBall.relativeToGlobal(self.loc, self.orientation);
 
-    double timeDelta = double((currTime - prevTime) + 0.000001) / CLOCKS_PER_SEC;
+    // double timeDelta = double((currTime - prevTime) + 0.000001) / CLOCKS_PER_SEC;
+    double timeDelta = 0.03;
 
     // Update the ball in the WorldObject block so that it can be accessed in python
     ball.loc = globalBall;
     ball.distance = ball.visionDistance;
     ball.bearing = ball.visionBearing;
-    ball.absVel = Point2D((ball.loc.x - prevPoint.x) / timeDelta, 
-						  (ball.loc.y - prevPoint.y) / timeDelta);
 
-  
+    int x_diff = abs(ball.loc.x - prevPoint.x);
+    int y_diff = abs(ball.loc.y - prevPoint.y);
+
+    // TODO: Fine tune values here
+    int x_diff_thresh = 10;
+    int y_diff_thresh = 5;
+
+//    if (x_diff < x_diff_thresh && y_diff < y_diff_thresh) {
+//        ball.absVel = Point2D(0.0, 0.0);
+//    } else if (x_diff < x_diff_thresh) {
+//        ball.absVel = Point2D(0.0, (ball.loc.y - prevPoint.y) / timeDelta);
+//    } else if (y_diff < y_diff_thresh) {
+//        ball.absVel = Point2D((ball.loc.x - prevPoint.x) / timeDelta, 0.0);
+//    }
+
+    ball.absVel = Point2D((ball.loc.x - prevPoint.x) / timeDelta, 
+            (ball.loc.y - prevPoint.y) / timeDelta);
 
     Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign> zk = Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign>::Zero();
     zk[0] = ball.loc.x;
@@ -116,7 +131,7 @@ void LocalizationModule::processFrame() {
     zk[3] = ball.absVel.y;
     zk[4] = friction;
 
-    std::cout << "Measurement:\n" << zk << std::endl;
+    // std::cout << "Measurement:\n" << zk << std::endl;
     //This is good
 
 
@@ -140,8 +155,8 @@ void LocalizationModule::processFrame() {
     Ak(3, 3) = xk[4];
     Ak(3, 4) = xk[3];
 
-    std::cout << "Ak:\n" << Ak << std::endl;     //Believe this is created and set correctly
-    std::cout << "Time Delta:\n" << timeDelta << std::endl; //This should be fine
+    // std::cout << "Ak:\n" << Ak << std::endl;     //Believe this is created and set correctly
+    // std::cout << "Time Delta:\n" << timeDelta << std::endl; //This should be fine
 
 
     //Bug probably below this part???
@@ -150,27 +165,31 @@ void LocalizationModule::processFrame() {
     xkBar[2] = xk[2]*xk[4];
     xkBar[3] = xk[3]*xk[4];
     xkBar[4] = xk[4];
-    std::cout << "State Bar:\n" << xkBar << std::endl;
+    // std::cout << "State Bar:\n" << xkBar << std::endl;
 
 
 
 
     Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> PkBar = Ak*Pk*Ak.transpose() + Qk;
-    std::cout << "Covariance Bar:\n" << PkBar << std::endl;
+    // std::cout << "Covariance Bar:\n" << PkBar << std::endl;
 
 
     Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Kk = PkBar*((PkBar + Rk).inverse());
-    std::cout << "Kalman Gain:\n" << Kk << std::endl;
+    // std::cout << "Kalman Gain:\n" << Kk << std::endl;
 
     xk = xkBar + Kk*(zk - xkBar);
     Pk = (eye - Kk)*PkBar;
-    std::cout << "State:\n" << xk << std::endl;
-    std::cout << "Covariance:\n" << Pk << std::endl;
+    // std::cout << "State:\n" << xk << std::endl;
+    // std::cout << "Covariance:\n" << Pk << std::endl;
 
 
     // Update the localization memory objects with localization calculations
     // so that they are drawn in the World window
-    cache_.localization_mem->state = xk;
+    cache_.localization_mem->state[0] = xk[0];
+    cache_.localization_mem->state[1] = xk[1];
+    cache_.localization_mem->state[2] = xk[2];
+    cache_.localization_mem->state[3] = xk[3];
+    cache_.localization_mem->state[4] = xk[4];
   	cache_.localization_mem->covariance = Pk;
 
 
