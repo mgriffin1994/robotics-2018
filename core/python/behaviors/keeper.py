@@ -20,24 +20,24 @@ import math
 class BlockLeft(Node):
     def run(self):
         UTdebug.log(15, "Blocking left")
-        joint_commands.send_arm_angles_ = True
-        joint_commands.setJointCommand(core.LShoulderRoll, math.pi/3)
+        #joint_commands.send_arm_angles_ = True
+        #joint_commands.setJointCommand(core.LShoulderRoll, math.pi/3)
 
 
 class BlockRight(Node):
     def run(self):
         UTdebug.log(15, "Blocking right")
-        joint_commands.send_arm_angles_ = True
-        joint_commands.setJointCommand(core.RShoulderRoll, math.pi/3)
+        #joint_commands.send_arm_angles_ = True
+        #joint_commands.setJointCommand(core.RShoulderRoll, math.pi/3)
 
 
 
 class BlockCenter(Node):
     def run(self):
         UTdebug.log(15, "Blocking right")
-        joint_commands.send_arm_angles_ = True
-        joint_commands.setJointCommand(core.RShoulderPitch, math.pi/3)
-        joint_commands.setJointCommand(core.LShoulderPitch, math.pi/3)
+        #joint_commands.send_arm_angles_ = True
+        #joint_commands.setJointCommand(core.RShoulderPitch, math.pi/3)
+        #joint_commands.setJointCommand(core.LShoulderPitch, math.pi/3)
 
 
 
@@ -49,7 +49,8 @@ class Blocker(Node):
         ball = mem_objects.world_objects[core.WO_BALL]
         #ball_state = localization_mem.state
         #ball_cov = localization_mem.covariance
-        #print(ball_state)
+        #print(localization_mem.getBallPosition(), localization_mem.getBallVel(), localization_mem.getFriction())
+
         #print(ball_cov)
 
         #TODO grab the ball state as well
@@ -73,9 +74,9 @@ class Blocker(Node):
 class Playing(LoopingStateMachine):
     def setup(self):
         blocker = Blocker()
-        blocks = {"left": pose.BlockLeft(),
-                  "right": pose.BlockRight(),
-                  "center": pose.BlockCenter()
+        blocks = {"left": BlockLeft(),
+                  "right": BlockRight(),
+                  "center": BlockCenter()
                   }
         for name in blocks:
             b = blocks[name]

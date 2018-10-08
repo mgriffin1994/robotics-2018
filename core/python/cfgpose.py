@@ -2082,7 +2082,7 @@ armLeft = dict()
 armLeft[core.HeadYaw] = 0.0
 armLeft[core.HeadPitch] = 0
 armLeft[core.LShoulderPitch] = -90
-armLeft[core.LShoulderRoll] = 45
+armLeft[core.LShoulderRoll] = 90
 armLeft[core.LElbowYaw] = 0
 armLeft[core.LElbowRoll] = 0
 armLeft[core.LHipYawPitch] = -5
@@ -2122,7 +2122,7 @@ armRight[core.RKneePitch] = 125
 armRight[core.RAnklePitch] = -70
 armRight[core.RAnkleRoll] = 0
 armRight[core.RShoulderPitch] = -90
-armRight[core.RShoulderRoll] = 45
+armRight[core.RShoulderRoll] = 90
 armRight[core.RElbowYaw] = 0
 armRight[core.RElbowRoll] = 0
 

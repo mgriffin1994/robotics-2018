@@ -4,6 +4,7 @@
 #include <memory/MemoryCache.h>
 #include <localization/LocalizationParams.h>
 #include <ctime>
+#include <time.h>       /* clock_t, clock, CLOCKS_PER_SEC */
 
 class ParticleFilter;
 class Point2D;
