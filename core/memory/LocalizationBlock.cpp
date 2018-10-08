@@ -21,8 +21,8 @@ float LocalizationBlock::getFriction() {
   return state[4];
 }    
 
-Matrix<float, STATE_SIZE, STATE_SIZE> LocalizationBlock::getBallCov() {
-  return covariance.block<STATE_SIZE,STATE_SIZE>(0,0);
+Matrix<float, 2, 2> LocalizationBlock::getBallCov() {
+  return covariance.block<2,2>(0,0);
 }
 /*
 void LocalizationBlock::serialize(StreamBuffer& buffer, std::string) {
