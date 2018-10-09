@@ -87,7 +87,7 @@ void LocalizationModule::processFrame() {
   auto sloc = cache_.localization_mem->player_;
   self.loc = sloc;
 
-  float friction = 1.0;
+  float friction = 0.5;
   float noiseR = 0.1;
   float noiseQ = 0.1;
 
@@ -125,7 +125,7 @@ void LocalizationModule::processFrame() {
     ball.absVel = Point2D((ball.loc.x - prevPoint.x) / timeDelta, 
             (ball.loc.y - prevPoint.y) / timeDelta);
 
-    Eigen::Matrix<float, STATE_SIZE-1, 1, Eigen::DontAlign> zk = Eigen::Matrix<float, STATE_SIZE-1, 1, Eigen::DontAlign>::Zero();
+    Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign> zk = Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign>::Zero();
     zk[0] = ball.loc.x;
     zk[1] = ball.loc.y;
     zk[2] = ball.absVel.x;
@@ -144,11 +144,12 @@ void LocalizationModule::processFrame() {
     Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> eye = Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign>::Identity();
     Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Ak = eye;
 
-    Eigen::Matrix<float, STATE_SIZE-1, STATE_SIZE, Eigen::DontAlign> Hk = eye.block<STATE_SIZE-1, STATE_SIZE>(0, 0);
+    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Hk = eye;
 
 
     Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Qk = eye;
     Qk *= noiseQ;
+    Qk(4, 4) = 0.0000001;
 
     Ak(0, 2) = timeDelta;
     Ak(1, 3) = timeDelta;
@@ -157,7 +158,7 @@ void LocalizationModule::processFrame() {
     Ak(3, 3) = xk[4];
     Ak(3, 4) = xk[3];
 
-    // std::cout << "Ak:\n" << Ak << std::endl;     //Believe this is created and set correctly
+    std::cout << "Ak:\n" << Ak << std::endl;     //Believe this is created and set correctly
     // std::cout << "Time Delta:\n" << timeDelta << std::endl; //This should be fine
 
 
@@ -178,11 +179,12 @@ void LocalizationModule::processFrame() {
     //Eigen::Matrix<float, STATE_SIZE-1, STATE_SIZE-1, Eigen::DontAlign> Rk = eye.block<STATE_SIZE-1, STATE_SIZE-1>(0, 0);
     //Rk *= noiseR;
 
-    Eigen::Matrix<float, STATE_SIZE-1, STATE_SIZE-1, Eigen::DontAlign> Rk;
-    Rk << 4.55407840e+00, 2.35253862e-01, 7.13547901e+01, 1.78486872e+00,
-     2.35253862e-01, 5.88155009e-01, 7.87302999e-01, 1.44606624e+01,
-     7.13547901e+01, 7.87302999e-01, 4.77616833e+03, 8.34338320e+01,
-     1.78486872e+00, 1.44606624e+01, 8.34338320e+01, 9.64309636e+02;
+    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Rk;
+    Rk << 4.55407840e+00, 2.35253862e-01, 7.13547901e+01, 1.78486872e+00, 0,
+     2.35253862e-01, 5.88155009e-01, 7.87302999e-01, 1.44606624e+01, 0,
+     7.13547901e+01, 7.87302999e-01, 4.77616833e+03, 8.34338320e+01, 0,
+     1.78486872e+00, 1.44606624e+01, 8.34338320e+01, 9.64309636e+02, 0,
+     0, 0, 0, 0, 0.000000001;
 
     //float noiseR = PkBar.eigenvalues().real().minCoeff();
     //std::cout << "NoiseR: " << noiseR + 0.00000001 << std::endl;
@@ -190,7 +192,7 @@ void LocalizationModule::processFrame() {
     //Rk *= noiseR;
 
 
-    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE-1, Eigen::DontAlign> Kk = (PkBar*Hk.transpose())*((Hk*PkBar*Hk.transpose() + Rk).inverse());
+    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Kk = (PkBar*Hk.transpose())*((Hk*PkBar*Hk.transpose() + Rk).inverse());
     // std::cout << "Kalman Gain:\n" << Kk << std::endl;
 
     xk = xkBar + Kk*(zk - Hk*xkBar);
