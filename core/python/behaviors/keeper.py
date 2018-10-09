@@ -13,6 +13,7 @@ from state_machine import Node, S, T, LoopingStateMachine
 from memory import joint_commands, localization_mem, robot_state
 import UTdebug
 import math
+import numpy as np
 
 predict_frames = 10
 y_thresh = 400
@@ -41,8 +42,12 @@ class BlockCenter(Node):
         #joint_commands.setJointCommand(core.LShoulderPitch, math.pi/3)
 
 
-
 class Blocker(Node):
+
+    def __init__(self):
+        super(Blocker, self).__init__()
+        self.data = []
+
     def run(self):
 
         commands.setStiffness()
@@ -55,9 +60,33 @@ class Blocker(Node):
         #print(ball_state)
         #print(ball_cov)
 
+        # if ball.seen:
+        #     z = np.array([ball.loc.x, ball.loc.y, ball.absVel.x, ball.absVel.y])
+        #     self.data.append(z)
+        #     mat = np.array(self.data)
+        #     print(mat.shape)
+        #     if len(self.data) > 2:
+        #         print(np.cov(mat.T))
+        #     print()
+
+
+
+        '''
+        [[  4.55407840e+00   2.35253862e-01   7.13547901e+01   1.78486872e+00]
+         [  2.35253862e-01   5.88155009e-01   7.87302999e-01   1.44606624e+01]
+         [  7.13547901e+01   7.87302999e-01   4.77616833e+03   8.34338320e+01]
+         [  1.78486872e+00   1.44606624e+01   8.34338320e+01   9.64309636e+02]]
+        '''
+
+
+
+
+
+
 #        if ball.seen:
 #            commands.setHeadPan(ball.bearing, 0.1)
 
+        #'''
         robot = mem_objects.world_objects[robot_state.WO_SELF]
         rob_x = robot.loc.x
         rob_y = robot.loc.y
@@ -90,6 +119,15 @@ class Blocker(Node):
             print(choice)
             print()
             self.postSignal(choice)
+        #'''
+
+
+
+
+
+
+
+
 
 #        if ball.distance < 500:
 #            UTdebug.log(15, "Ball is close, blocking!")

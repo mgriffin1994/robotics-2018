@@ -6,6 +6,7 @@ LocalizationBlock::LocalizationBlock() {
   header.version = 10;
   header.size = sizeof(LocalizationBlock);
   state = decltype(state)::Zero();
+  state[4] = 0.5; //friction
   covariance = decltype(covariance)::Identity();
 }
 
