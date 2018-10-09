@@ -6,7 +6,7 @@ LocalizationBlock::LocalizationBlock() {
   header.version = 10;
   header.size = sizeof(LocalizationBlock);
   state = decltype(state)::Zero();
-  state[4] = 0.5; //friction
+  //state[4] = 0.5; //friction
   covariance = decltype(covariance)::Identity();
 }
 
@@ -18,9 +18,9 @@ Point2D LocalizationBlock::getBallVel() {
   return Point2D(state[2], state[3]);
 }
 
-float LocalizationBlock::getFriction() {
+/*float LocalizationBlock::getFriction() {
   return state[4];
-}    
+}  */  
 
 Matrix<float, 2, 2> LocalizationBlock::getBallCov() {
   return covariance.block<2,2>(0,0);

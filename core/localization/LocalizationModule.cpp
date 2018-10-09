@@ -91,6 +91,28 @@ void LocalizationModule::processFrame() {
   float noiseR = 0.1;
   float noiseQ = 0.1;
 
+  double timeDelta = 1.0 / 30.;
+
+
+
+  Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign> xk = cache_.localization_mem->state;
+  Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Pk = cache_.localization_mem->covariance;
+  
+  Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign> xkBar = Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign>::Zero();
+
+
+  Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> eye = Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign>::Identity();
+  Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Qk = eye;
+  Qk *= noiseQ;
+  Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Hk = eye;
+
+  //Move back inside if doing EKF
+  Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Ak = eye;
+  Ak(0, 2) = timeDelta;
+  Ak(1, 3) = timeDelta;
+  Ak(2, 2) = friction;
+  Ak(3, 3) = friction;
+
     
   if(ball.seen) {
     // Compute the relative position of the ball from vision readings
@@ -100,7 +122,6 @@ void LocalizationModule::processFrame() {
     auto globalBall = relBall.relativeToGlobal(self.loc, self.orientation);
 
     // double timeDelta = double((currTime - prevTime) + 0.000001) / CLOCKS_PER_SEC;
-    double timeDelta = 0.03;
 
     // Update the ball in the WorldObject block so that it can be accessed in python
     ball.loc = globalBall;
@@ -125,6 +146,8 @@ void LocalizationModule::processFrame() {
     ball.absVel = Point2D((ball.loc.x - prevPoint.x) / timeDelta, 
             (ball.loc.y - prevPoint.y) / timeDelta);
 
+    prevPoint = ball.loc;
+
     Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign> zk = Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign>::Zero();
     zk[0] = ball.loc.x;
     zk[1] = ball.loc.y;
@@ -135,61 +158,36 @@ void LocalizationModule::processFrame() {
     std::cout << "Measurement:\n" << zk << std::endl;
     //This is good
 
+    //Ak(0, 2) = timeDelta;
+    //Ak(1, 3) = timeDelta;
+    //Ak(2, 2) = xk[4];
+    //Ak(2, 4) = xk[2];
+    //Ak(3, 3) = xk[4];
+    //Ak(3, 4) = xk[3];
+
+    //std::cout << "Ak:\n" << Ak << std::endl;     //Believe this is created and set correctly
 
 
-    Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign> xk = cache_.localization_mem->state;
-    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Pk = cache_.localization_mem->covariance;
+    //xkBar[0] = xk[0] + xk[2]*timeDelta;
+    //xkBar[1] = xk[1] + xk[3]*timeDelta;
+    //xkBar[2] = xk[2]*xk[4];
+    //xkBar[3] = xk[3]*xk[4];
+    //xkBar[4] = xk[4];
 
-    Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign> xkBar = Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign>::Zero();
-    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> eye = Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign>::Identity();
-    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Ak = eye;
-
-    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Hk = eye;
-
-
-    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Qk = eye;
-    Qk *= noiseQ;
-    Qk(4, 4) = 0.0000001;
-
-    Ak(0, 2) = timeDelta;
-    Ak(1, 3) = timeDelta;
-    Ak(2, 2) = xk[4];
-    Ak(2, 4) = xk[2];
-    Ak(3, 3) = xk[4];
-    Ak(3, 4) = xk[3];
-
-    std::cout << "Ak:\n" << Ak << std::endl;     //Believe this is created and set correctly
-    // std::cout << "Time Delta:\n" << timeDelta << std::endl; //This should be fine
-
-
-    //Bug probably below this part???
-    xkBar[0] = xk[0] + xk[2]*timeDelta;
-    xkBar[1] = xk[1] + xk[3]*timeDelta;
-    xkBar[2] = xk[2]*xk[4];
-    xkBar[3] = xk[3]*xk[4];
-    xkBar[4] = xk[4];
-    std::cout << "State Bar:\n" << xkBar << std::endl;
-
-
-
-
+    xkBar = Ak*xk;
     Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> PkBar = (Ak*Pk)*Ak.transpose() + Qk;
+
+    std::cout << "State Bar:\n" << xkBar << std::endl;
     std::cout << "Covariance Bar:\n" << PkBar << std::endl;
 
     //Eigen::Matrix<float, STATE_SIZE-1, STATE_SIZE-1, Eigen::DontAlign> Rk = eye.block<STATE_SIZE-1, STATE_SIZE-1>(0, 0);
     //Rk *= noiseR;
 
     Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Rk;
-    Rk << 4.55407840e+00, 2.35253862e-01, 7.13547901e+01, 1.78486872e+00, 0,
-     2.35253862e-01, 5.88155009e-01, 7.87302999e-01, 1.44606624e+01, 0,
-     7.13547901e+01, 7.87302999e-01, 4.77616833e+03, 8.34338320e+01, 0,
-     1.78486872e+00, 1.44606624e+01, 8.34338320e+01, 9.64309636e+02, 0,
-     0, 0, 0, 0, 0.000000001;
-
-    //float noiseR = PkBar.eigenvalues().real().minCoeff();
-    //std::cout << "NoiseR: " << noiseR + 0.00000001 << std::endl;
-    //Rk *= (noiseR + 0.00000001);
-    //Rk *= noiseR;
+    Rk << 4.55407840e+00, 2.35253862e-01, 7.13547901e+01, 1.78486872e+00,
+     2.35253862e-01, 5.88155009e-01, 7.87302999e-01, 1.44606624e+01,
+     7.13547901e+01, 7.87302999e-01, 4.77616833e+03, 8.34338320e+01,
+     1.78486872e+00, 1.44606624e+01, 8.34338320e+01, 9.64309636e+02;
 
 
     Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Kk = (PkBar*Hk.transpose())*((Hk*PkBar*Hk.transpose() + Rk).inverse());
@@ -198,12 +196,14 @@ void LocalizationModule::processFrame() {
     xk = xkBar + Kk*(zk - Hk*xkBar);
     Pk = (eye - Kk*Hk)*PkBar;
     
-    //Pk = 0.5*Pk + 0.5*Pk.transpose(); //make sure it's symmetric
-    //Pk += (0.00001 + Pk.eigenvalues().real().minCoeff())*eye;
+    //Pk = 0.5*Pk + 0.5*Pk.transpose(); //make sure it's symmetric (already pretty close so won't change values too much)
+    //float minEig = Pk.eigenvalues().real().minCoeff()
+    //if(minEig <= 0) Pk += (0.00000001 + minEig)*eye;
+    //These two force Pk to be PD
 
 
-    std::cout << "PkBar Eigenvalues:\n" << PkBar.eigenvalues() << std::endl;
-    std::cout << "Pk Eigenvalues:\n" << Pk.eigenvalues() << std::endl;
+    //std::cout << "PkBar Eigenvalues:\n" << PkBar.eigenvalues() << std::endl;
+    //std::cout << "Pk Eigenvalues:\n" << Pk.eigenvalues() << std::endl;
 
 
     std::cout << "State:\n" << xk << std::endl;
@@ -216,7 +216,7 @@ void LocalizationModule::processFrame() {
     cache_.localization_mem->state[1] = xk[1];
     cache_.localization_mem->state[2] = xk[2];
     cache_.localization_mem->state[3] = xk[3];
-    cache_.localization_mem->state[4] = xk[4];
+    //cache_.localization_mem->state[4] = xk[4];
   	cache_.localization_mem->covariance = Pk;
 
 
@@ -231,11 +231,33 @@ void LocalizationModule::processFrame() {
     Kk.resize(0, 0);
 
   } 
-  //TODO: How do we handle not seeing the ball?
   else {
-    ball.distance = 10000.0f;
-    ball.bearing = 0.0f;
+    
+    xkBar = Ak*xk;
+    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> PkBar = (Ak*Pk)*Ak.transpose() + Qk;
+
+
+    cout << "Missed ball" << std::endl;
+    std::cout << "State Bar:\n" << xkBar << std::endl;
+    std::cout << "Covariance Bar:\n" << PkBar << std::endl;
+
+    cache_.localization_mem->state[0] = xkBar[0];
+    cache_.localization_mem->state[1] = xkBar[1];
+    cache_.localization_mem->state[2] = xkBar[2];
+    cache_.localization_mem->state[3] = xkBar[3];
+    //cache_.localization_mem->state[4] = xk[4];
+    cache_.localization_mem->covariance = PkBar;
+
+    xk.resize(0, 0);
+    Pk.resize(0, 0);
+    xkBar.resize(0, 0);
+    PkBar.resize(0, 0);
+    eye.resize(0, 0);
+    Ak.resize(0, 0);
+    Qk.resize(0, 0);
+
   }
-  prevPoint = ball.loc;
+
   prevTime = currTime;
+
 }

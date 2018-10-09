@@ -5,7 +5,7 @@
 #include <math/Geometry.h>
 #include <localization/Particle.h>
 #include <schema/gen/LocalizationBlock_generated.h>
-#define STATE_SIZE 5
+#define STATE_SIZE 4
 #define COV_SIZE (STATE_SIZE * STATE_SIZE)
 #define MAX_MODELS_IN_MEM 1
 #define MODEL_STATE_SIZE (MAX_MODELS_IN_MEM * STATE_SIZE)
@@ -55,7 +55,7 @@ DECLARE_INTERNAL_SCHEMA(struct LocalizationBlock : public MemoryBlock {
     Point2D getBallPosition();
     Point2D getBallVel();
     Eigen::Matrix<float, 2, 2> getBallCov();
-    float getFriction();
+    //float getFriction();
     std::vector<Particle> particles;
     //SCHEMA_FIELD(std::vector<Particle> particles);
     //void serialize(StreamBuffer& buffer, std::string);

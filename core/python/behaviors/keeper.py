@@ -17,8 +17,10 @@ import numpy as np
 
 predict_frames = 10
 y_thresh = 400
-time_delay = 0.03
+time_delay = 1.0 / 30.
+center_region = 100
 
+'''
 class BlockLeft(Node):
     def run(self):
         UTdebug.log(15, "Blocking left")
@@ -40,6 +42,7 @@ class BlockCenter(Node):
         #joint_commands.send_arm_angles_ = True
         #joint_commands.setJointCommand(core.RShoulderPitch, math.pi/3)
         #joint_commands.setJointCommand(core.LShoulderPitch, math.pi/3)
+'''
 
 
 class Blocker(Node):
@@ -53,12 +56,6 @@ class Blocker(Node):
         commands.setStiffness()
 
         ball = mem_objects.world_objects[core.WO_BALL]
-        #ball_state = localization_mem.state
-        #ball_cov = localization_mem.covariance
-        #print(localization_mem.getBallPosition(), localization_mem.getBallVel(), localization_mem.getFriction())
-
-        #print(ball_state)
-        #print(ball_cov)
 
         # if ball.seen:
         #     z = np.array([ball.loc.x, ball.loc.y, ball.absVel.x, ball.absVel.y])
@@ -68,19 +65,6 @@ class Blocker(Node):
         #     if len(self.data) > 2:
         #         print(np.cov(mat.T))
         #     print()
-
-
-
-        '''
-        [[  4.55407840e+00   2.35253862e-01   7.13547901e+01   1.78486872e+00]
-         [  2.35253862e-01   5.88155009e-01   7.87302999e-01   1.44606624e+01]
-         [  7.13547901e+01   7.87302999e-01   4.77616833e+03   8.34338320e+01]
-         [  1.78486872e+00   1.44606624e+01   8.34338320e+01   9.64309636e+02]]
-        '''
-
-
-
-
 
 
 #        if ball.seen:
@@ -94,22 +78,23 @@ class Blocker(Node):
         x_pos, y_pos = ball_pos.x, ball_pos.y
         ball_vel = localization_mem.getBallVel()
         x_vel, y_vel = ball_vel.x, ball_vel.y
-        friction = localization_mem.getFriction()
+        #friction = localization_mem.getFriction()
+        friction = 0.5 
 
         predicted_x = [x_pos + x_vel * time_delay * ((1 - (friction)**n) / (1 - friction)) for n in range(predict_frames)]
+        #predicted_x = [x_pos + x_vel * time_delay * n for n in range(predict_frames)]
         predicted_y = [y_pos + y_vel * time_delay * ((1 - (friction)**n) / (1 - friction)) for n in range(predict_frames)]
+        #predicted_y = [y_pos + y_vel * time_delay * n for n in range(predict_frames)]
+
         print()
         print(predicted_x)
         print(predicted_y)
 
-        #TODO: Use prediction equation up to some max number of frames to seen if ball will ever pass goal
-        #so see if state of ball.x becomes negative or abs(ball.y) within threshold at any of those times
-        #
         if any(x <= rob_x for x in predicted_x) and any(abs(y - rob_y) < y_thresh for y in predicted_y):
             possible_goal_frame = next(i for i, x in enumerate(predicted_x) if x <= rob_x)
             y_pred = predicted_y[possible_goal_frame]
 
-            if abs(y_pred - rob_y) <= 100:
+            if abs(y_pred - rob_y) <= center_region:
                 choice = "center"
             elif y_pred > 0:
                 choice = "left"
@@ -121,27 +106,6 @@ class Blocker(Node):
             self.postSignal(choice)
         #'''
 
-
-
-
-
-
-
-
-
-#        if ball.distance < 500:
-#            UTdebug.log(15, "Ball is close, blocking!")
-#            #TODO change these choices to be based on ball velocity and position
-#            
-#            if ball.bearing > 30 * core.DEG_T_RAD:
-#                choice = "left"
-#            elif ball.bearing < -30 * core.DEG_T_RAD:
-#                choice = "right"
-#            else:
-#                choice = "center"
-#            
-#            self.postSignal(choice)
-#
 
 class Playing(LoopingStateMachine):
     def setup(self):
