@@ -122,5 +122,5 @@ class Playing(LoopingStateMachine):
                   }
         for name in blocks:
             b = blocks[name]
-            self.add_transition(blocker, S(name), b, T(1.0), blocker)
+            self.add_transition(blocker, S(name), b, T(4.0), blocker)
 # TODO make T back to T(5) when done testing

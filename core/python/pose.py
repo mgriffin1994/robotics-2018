@@ -209,34 +209,43 @@ class Squat(Task):
 
 
 class BlockLeft(Task):
-  def __init__(self, time = 3.0):
+  def __init__(self, time = 1.0):
     super(BlockLeft, self).__init__(time=time)
     self.setSubtask(PoseSequence(
       cfgpose.armLeft, 1.0,
       cfgpose.armLeft, self.time, 
-      cfgpose.sittingPoseNoArms, 2.0,
-      cfgpose.sittingPoseV3, 2.0
+      cfgpose.sittingPoseNoArms, 1.0,
+      cfgpose.sittingPoseV3, 1.0
     ))
+
+  def run(self):
+    self.__init__()
 
 
 class BlockRight(Task):
-  def __init__(self, time = 3.0):
+  def __init__(self, time = 1.0):
     super(BlockRight, self).__init__(time=time)
     self.setSubtask(PoseSequence(
       cfgpose.armRight, 1.0,
       cfgpose.armRight, self.time, 
-      cfgpose.sittingPoseNoArms, 2.0,
-      cfgpose.sittingPoseV3, 2.0
+      cfgpose.sittingPoseNoArms, 1.0,
+      cfgpose.sittingPoseV3, 1.0
     ))
+
+  def run(self):
+    self.__init__()
 
 
 class BlockCenter(Task):
-  def __init__(self, time = 3.0):
+  def __init__(self, time = 1.0):
     super(BlockCenter, self).__init__(time=time)
     self.setSubtask(PoseSequence(
       cfgpose.armsForward, 1.0,
       cfgpose.armsForward, self.time, 
-      cfgpose.sittingPoseNoArms, 2.0,
-      cfgpose.sittingPoseV3, 2.0
+      cfgpose.sittingPoseNoArms, 1.0,
+      cfgpose.sittingPoseV3, 1.0
     ))
+
+  def run(self):
+    self.__init__()
 
