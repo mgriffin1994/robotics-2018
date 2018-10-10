@@ -15,10 +15,11 @@ import UTdebug
 import math
 import numpy as np
 
-predict_frames = 20
-y_thresh = 350
+predict_secs = 20
+y_thresh = 400
 time_delay = 1.0 / 30.
 center_region = 125
+x_thresh = 50
 
 '''
 class BlockLeft(Node):
@@ -80,25 +81,29 @@ class Blocker(Node):
         #friction = localization_mem.getFriction()
 #        friction = 0.5 
 #        friction = 1.0
-#        if ball.seen:
-#            angle = np.arctan((y_pos - rob_y)/(x_pos - rob_y + 1e-5))
-#            commands.setHeadPan(angle, 0.1, True)
+
+        #if ball.seen:
+        #    angle = np.arctan((y_pos - rob_y)/(x_pos - rob_x + 1e-5))
+        #    commands.setHeadPan(angle, 0.1)
+        #else:
+        #    commands.setHeadPan(0, 0.1)
 
         #'''
         #predicted_x = [x_pos + x_vel * time_delay * ((1 - (friction)**n) / (1 - friction)) for n in range(predict_frames)]
-        predicted_x = [x_pos + x_vel * time_delay * n for n in range(predict_frames)]
+        predicted_x = [x_pos + x_vel * time_delay * n for n in np.arange(0.0, predict_secs, 0.1)]
         #predicted_y = [y_pos + y_vel * time_delay * ((1 - (friction)**n) / (1 - friction)) for n in range(predict_frames)]
-        predicted_y = [y_pos + y_vel * time_delay * n for n in range(predict_frames)]
+        predicted_y = [y_pos + y_vel * time_delay * n for n in np.arange(0.0, predict_secs, 0.1)]
 
         print("predicted x: ", predicted_x[0], ", ",  predicted_x[-1])
         print("predicted y: ", predicted_y[0], ", ",  predicted_y[-1])
         print("robot x, y: ", rob_x, ", ", rob_y)
         print("velocity x, y: ", x_vel, ", ", y_vel)
 
-        if ball.seen and any(x <= rob_x for x in predicted_x):
-            possible_goal_frames = [i for i, x in enumerate(predicted_x) if x <= rob_x]
+        if ball.seen and any(x <= rob_x - x_thresh for x in predicted_x):
+            possible_goal_frames = [i for i, x in enumerate(predicted_x) if x <= rob_x - x_thresh]
             if any(abs(predicted_y[i]-rob_y) < y_thresh for i in possible_goal_frames):
                 y_pred = predicted_y[possible_goal_frames[0]]
+                print('num_frames', possible_goal_frames[0])
                 if abs(y_pred - rob_y) <= center_region:
                     choice = "center"
                 elif y_pred > 0:

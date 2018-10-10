@@ -97,6 +97,7 @@ void LocalizationModule::processFrame() {
   timeDelta = 1.0 / 30;
 
   static int num_frames_not_seen = 0;
+  int max_frames = 15;
 
   if(ball.seen) {
 
@@ -237,6 +238,15 @@ void LocalizationModule::processFrame() {
   	cache_.localization_mem->covariance = Pk;
 
 
+    if(num_frames_not_seen >= max_frames){
+        cache_.localization_mem->state[0] = ball.loc.x;
+        cache_.localization_mem->state[1] = ball.loc.y;
+        cache_.localization_mem->state[2] = 0;
+        cache_.localization_mem->state[3] = 0;
+        num_frames_not_seen = 0;
+    }
+
+
     zk.resize(0, 0);
     xk.resize(0, 0);
     Pk.resize(0, 0);
@@ -247,11 +257,10 @@ void LocalizationModule::processFrame() {
     Rk.resize(0, 0);
     Kk.resize(0, 0);
 
-    num_frames_not_seen = 0;
   } else {
       num_frames_not_seen++;
 
-      if (num_frames_not_seen >= 15) {
+/*      if (num_frames_not_seen >= max_frames) {
         cache_.localization_mem->state[0] = self.loc.x - 50;
         cache_.localization_mem->state[1] = 0;
         cache_.localization_mem->state[2] = 0;
@@ -284,7 +293,7 @@ void LocalizationModule::processFrame() {
     //    Ak.resize(0, 0);
     //    Qk.resize(0, 0);
     //
-      }
+      }*/
   }
 
   prevTime = currTime;
