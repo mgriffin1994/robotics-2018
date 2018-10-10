@@ -57,14 +57,14 @@ class Blocker(Node):
 
         ball = mem_objects.world_objects[core.WO_BALL]
 
-        # if ball.seen:
-        #     z = np.array([ball.loc.x, ball.loc.y, ball.absVel.x, ball.absVel.y])
-        #     self.data.append(z)
-        #     mat = np.array(self.data)
-        #     print(mat.shape)
-        #     if len(self.data) > 2:
-        #         print(np.cov(mat.T))
-        #     print()
+        #if ball.seen:
+        #    z = np.array([ball.loc.x, ball.loc.y, ball.absVel.x, ball.absVel.y])
+        #    self.data.append(z)
+        #    mat = np.array(self.data)
+        #    print(mat.shape)
+        #    if len(self.data) > 2:
+        #        print(np.cov(mat.T))
+        #    print()
 
 
 #        if ball.seen:
@@ -77,18 +77,24 @@ class Blocker(Node):
         ball_pos = localization_mem.getBallPosition()
         x_pos, y_pos = ball_pos.x, ball_pos.y
         ball_vel = localization_mem.getBallVel()
+        print()
+        print("=== python prints")
+        print("ball vel: ", ball.absVel.x, ", ", ball.absVel.y)
+        print("ball pos: ", ball.loc.x, ", ", ball.loc.y)
         x_vel, y_vel = ball_vel.x, ball_vel.y
         #friction = localization_mem.getFriction()
-        friction = 0.5 
+#        friction = 0.5 
+#        friction = 1.0
 
-        predicted_x = [x_pos + x_vel * time_delay * ((1 - (friction)**n) / (1 - friction)) for n in range(predict_frames)]
-        #predicted_x = [x_pos + x_vel * time_delay * n for n in range(predict_frames)]
-        predicted_y = [y_pos + y_vel * time_delay * ((1 - (friction)**n) / (1 - friction)) for n in range(predict_frames)]
-        #predicted_y = [y_pos + y_vel * time_delay * n for n in range(predict_frames)]
+        #predicted_x = [x_pos + x_vel * time_delay * ((1 - (friction)**n) / (1 - friction)) for n in range(predict_frames)]
+        predicted_x = [x_pos + x_vel * time_delay * n for n in range(predict_frames)]
+        #predicted_y = [y_pos + y_vel * time_delay * ((1 - (friction)**n) / (1 - friction)) for n in range(predict_frames)]
+        predicted_y = [y_pos + y_vel * time_delay * n for n in range(predict_frames)]
 
-        print()
-        print(predicted_x)
-        print(predicted_y)
+        print("predicted x: ", predicted_x[0], ", ",  predicted_x[-1])
+        print("predicted y: ", predicted_y[0], ", ",  predicted_y[-1])
+        print("robot x, y: ", rob_x, ", ", rob_y)
+        print("velocity x, y: ", x_vel, ", ", y_vel)
 
         if any(x <= rob_x for x in predicted_x) and any(abs(y - rob_y) < y_thresh for y in predicted_y):
             possible_goal_frame = next(i for i, x in enumerate(predicted_x) if x <= rob_x)
