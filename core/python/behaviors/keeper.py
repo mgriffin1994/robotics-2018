@@ -15,10 +15,10 @@ import UTdebug
 import math
 import numpy as np
 
-predict_frames = 10
+predict_frames = 15
 y_thresh = 400
 time_delay = 1.0 / 30.
-center_region = 100
+center_region = 125
 
 '''
 class BlockLeft(Node):
@@ -96,7 +96,7 @@ class Blocker(Node):
         print("robot x, y: ", rob_x, ", ", rob_y)
         print("velocity x, y: ", x_vel, ", ", y_vel)
 
-        if any(x <= rob_x for x in predicted_x) and any(abs(y - rob_y) < y_thresh for y in predicted_y):
+        if ball.seen and any(x <= rob_x for x in predicted_x) and any(abs(y - rob_y) < y_thresh for y in predicted_y):
             possible_goal_frame = next(i for i, x in enumerate(predicted_x) if x <= rob_x)
             y_pred = predicted_y[possible_goal_frame]
 
@@ -122,5 +122,5 @@ class Playing(LoopingStateMachine):
                   }
         for name in blocks:
             b = blocks[name]
-            self.add_transition(blocker, S(name), b, T(4.0), blocker)
+            self.add_transition(blocker, S(name), b, T(3.5), blocker)
 # TODO make T back to T(5) when done testing
