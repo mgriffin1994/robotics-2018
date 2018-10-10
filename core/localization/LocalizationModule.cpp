@@ -96,6 +96,8 @@ void LocalizationModule::processFrame() {
   //timeDelta = min(timeDelta, 1.0 / 20.);
   timeDelta = 1.0 / 30;
 
+  static int num_frames_not_seen = 0;
+
   if(ball.seen) {
 
     Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign> xk = cache_.localization_mem->state;
@@ -202,8 +204,8 @@ void LocalizationModule::processFrame() {
     Rk = eye;
     Rk(0,0) = 0.2;
     Rk(1,1) = 0.1;
-    Rk(2,2) = 2;
-    Rk(3,3) = 1.5;
+    Rk(2,2) = 1.5;
+    Rk(3,3) = 1.0;
 
     Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Kk = (PkBar*Hk.transpose())*((Hk*PkBar*Hk.transpose() + Rk).inverse());
     //std::cout << "Kalman Gain:\n" << Kk << std::endl;
@@ -245,33 +247,45 @@ void LocalizationModule::processFrame() {
     Rk.resize(0, 0);
     Kk.resize(0, 0);
 
-  } 
-//  else {
-//    
-//    xkBar = Ak*xk;
-//    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> PkBar = (Ak*Pk)*Ak.transpose() + Qk;
-//
-//
-//    //cout << "Missed ball" << std::endl;
-//    //std::cout << "State Bar:\n" << xkBar << std::endl;
-//    //std::cout << "Covariance Bar:\n" << PkBar << std::endl;
-//
-//    cache_.localization_mem->state[0] = xkBar[0];
-//    cache_.localization_mem->state[1] = xkBar[1];
-//    cache_.localization_mem->state[2] = xkBar[2];
-//    cache_.localization_mem->state[3] = xkBar[3];
-//    //cache_.localization_mem->state[4] = xk[4];
-//    cache_.localization_mem->covariance = PkBar;
-//
-//    xk.resize(0, 0);
-//    Pk.resize(0, 0);
-//    xkBar.resize(0, 0);
-//    PkBar.resize(0, 0);
-//    eye.resize(0, 0);
-//    Ak.resize(0, 0);
-//    Qk.resize(0, 0);
-//
-//  }
+    num_frames_not_seen = 0;
+  } else {
+      num_frames_not_seen++;
+
+      if (num_frames_not_seen >= 15) {
+        cache_.localization_mem->state[0] = self.loc.x - 50;
+        cache_.localization_mem->state[1] = 0;
+        cache_.localization_mem->state[2] = 0;
+        cache_.localization_mem->state[3] = 0;
+        //cache_.localization_mem->state[4] = xk[4];
+        cache_.localization_mem->covariance = Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign>::Identity();
+      } else {
+
+    //    
+    //    xkBar = Ak*xk;
+    //    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> PkBar = (Ak*Pk)*Ak.transpose() + Qk;
+    //
+    //
+    //    //cout << "Missed ball" << std::endl;
+    //    //std::cout << "State Bar:\n" << xkBar << std::endl;
+    //    //std::cout << "Covariance Bar:\n" << PkBar << std::endl;
+    //
+    //    cache_.localization_mem->state[0] = xkBar[0];
+    //    cache_.localization_mem->state[1] = xkBar[1];
+    //    cache_.localization_mem->state[2] = xkBar[2];
+    //    cache_.localization_mem->state[3] = xkBar[3];
+    //    //cache_.localization_mem->state[4] = xk[4];
+    //    cache_.localization_mem->covariance = PkBar;
+    //
+    //    xk.resize(0, 0);
+    //    Pk.resize(0, 0);
+    //    xkBar.resize(0, 0);
+    //    PkBar.resize(0, 0);
+    //    eye.resize(0, 0);
+    //    Ak.resize(0, 0);
+    //    Qk.resize(0, 0);
+    //
+      }
+  }
 
   prevTime = currTime;
 

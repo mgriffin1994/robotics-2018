@@ -15,8 +15,8 @@ import UTdebug
 import math
 import numpy as np
 
-predict_frames = 15
-y_thresh = 400
+predict_frames = 20
+y_thresh = 350
 time_delay = 1.0 / 30.
 center_region = 125
 
@@ -56,7 +56,7 @@ class Blocker(Node):
         commands.setStiffness()
 
         ball = mem_objects.world_objects[core.WO_BALL]
-
+        robot = mem_objects.world_objects[robot_state.WO_SELF]
         #if ball.seen:
         #    z = np.array([ball.loc.x, ball.loc.y, ball.absVel.x, ball.absVel.y])
         #    self.data.append(z)
@@ -67,11 +67,6 @@ class Blocker(Node):
         #    print()
 
 
-#        if ball.seen:
-#            commands.setHeadPan(ball.bearing, 0.1)
-
-        #'''
-        robot = mem_objects.world_objects[robot_state.WO_SELF]
         rob_x = robot.loc.x
         rob_y = robot.loc.y
         ball_pos = localization_mem.getBallPosition()
@@ -85,7 +80,11 @@ class Blocker(Node):
         #friction = localization_mem.getFriction()
 #        friction = 0.5 
 #        friction = 1.0
+#        if ball.seen:
+#            angle = np.arctan((y_pos - rob_y)/(x_pos - rob_y + 1e-5))
+#            commands.setHeadPan(angle, 0.1, True)
 
+        #'''
         #predicted_x = [x_pos + x_vel * time_delay * ((1 - (friction)**n) / (1 - friction)) for n in range(predict_frames)]
         predicted_x = [x_pos + x_vel * time_delay * n for n in range(predict_frames)]
         #predicted_y = [y_pos + y_vel * time_delay * ((1 - (friction)**n) / (1 - friction)) for n in range(predict_frames)]
@@ -96,20 +95,20 @@ class Blocker(Node):
         print("robot x, y: ", rob_x, ", ", rob_y)
         print("velocity x, y: ", x_vel, ", ", y_vel)
 
-        if ball.seen and any(x <= rob_x for x in predicted_x) and any(abs(y - rob_y) < y_thresh for y in predicted_y):
-            possible_goal_frame = next(i for i, x in enumerate(predicted_x) if x <= rob_x)
-            y_pred = predicted_y[possible_goal_frame]
+        if ball.seen and any(x <= rob_x for x in predicted_x):
+            possible_goal_frames = [i for i, x in enumerate(predicted_x) if x <= rob_x]
+            if any(abs(predicted_y[i]-rob_y) < y_thresh for i in possible_goal_frames):
+                y_pred = predicted_y[possible_goal_frames[0]]
+                if abs(y_pred - rob_y) <= center_region:
+                    choice = "center"
+                elif y_pred > 0:
+                    choice = "left"
+                elif y_pred < 0:
+                    choice = "right"
 
-            if abs(y_pred - rob_y) <= center_region:
-                choice = "center"
-            elif y_pred > 0:
-                choice = "left"
-            elif y_pred < 0:
-                choice = "right"
-
-            print(choice)
-            print()
-            self.postSignal(choice)
+                print(choice)
+                print()
+                self.postSignal(choice)
         #'''
 
 
@@ -122,5 +121,5 @@ class Playing(LoopingStateMachine):
                   }
         for name in blocks:
             b = blocks[name]
-            self.add_transition(blocker, S(name), b, T(3.5), blocker)
+            self.add_transition(blocker, S(name), b, T(3.25), blocker)
 # TODO make T back to T(5) when done testing
