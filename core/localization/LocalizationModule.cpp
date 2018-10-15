@@ -253,17 +253,6 @@ void LocalizationModule::processFrame() {
         num_frames_not_seen = 0;
     }
 
-
-    zk.resize(0, 0);
-    xk.resize(0, 0);
-    Pk.resize(0, 0);
-    xkBar.resize(0, 0);
-    PkBar.resize(0, 0);
-    eye.resize(0, 0);
-    Ak.resize(0, 0);
-    Rk.resize(0, 0);
-    Kk.resize(0, 0);
-
   } else {
       num_frames_not_seen++;
 
