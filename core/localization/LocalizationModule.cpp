@@ -99,6 +99,13 @@ void LocalizationModule::processFrame() {
   static int num_frames_not_seen = 0;
   int max_frames = 15;
 
+  // Process the current frame and retrieve our location/orientation estimate
+  // from the particle filter
+  pfilter_->processFrame();
+  self.loc = pfilter_->pose().translation;
+  self.orientation = pfilter_->pose().rotation;
+  log(40, "Localization Update: x=%2.f, y=%2.f, theta=%2.2f", self.loc.x, self.loc.y, self.orientation * RAD_T_DEG);
+    
   if(ball.seen) {
 
     Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign> xk = cache_.localization_mem->state;
