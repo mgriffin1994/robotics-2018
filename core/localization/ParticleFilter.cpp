@@ -36,6 +36,12 @@ void ParticleFilter::init(Point2D loc, float orientation) {
 
 void ParticleFilter::processFrame() {
   // Indicate that the cached mean needs to be updated
+
+  std::cout << std::endl;
+  std::cout << std::endl;
+  std::cout << std::endl;
+  std::cout << "New frame" << std::endl;
+
   dirty_ = true;
 
   float current_angle = 0.0;
@@ -98,36 +104,63 @@ void ParticleFilter::processFrame() {
       Particle& p = resampled[i];
 
       // TODO: Mess with noise
-      float x = Random::inst().sampleN() * 10 + disp.translation.x + p.x;
-      float y = Random::inst().sampleN() * 10 + disp.translation.y + p.y;
-      float t = Random::inst().sampleN() * M_PI / 4 + disp.rotation + p.t;
+      float x = Random::inst().sampleN()*5 + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t); 
+      float y = Random::inst().sampleN()*5 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t); 
+      float t = Random::inst().sampleN()*(M_PI/8.) + disp.rotation + p.t;
+
+      
+
       
       float w = 1.0;
 
-      // for(auto beacon : beacon_locs) {
-      //   auto& object = cache_.world_object->objects_[beacon.first];
-      //   float xo = beacon.second.x;
-      //   float yo = beacon.second.y;
+      for(auto beacon : beacon_locs) {
+        auto& object = cache_.world_object->objects_[beacon.first];
+        float xo = beacon.second.x;
+        float yo = beacon.second.y;
 
-      //   if(object.seen){
-      //     float d_pred = sqrt(pow(x - xo, 2) + pow(y-yo, 2));
-      //     float theta_pred = atan2(y-yo, x-xo) - t;
-      //     
-      //     float d = object.visionDistance;
-      //     float theta = object.visionBearing;
+        if(object.seen){
+          float d_pred = sqrt(pow(x - xo, 2) + pow(y-yo, 2));
+          //float theta_pred = atan2(yo-y, xo-x) - t;
+          float theta_pred = atan2(yo-y, xo-x);
+          
+          float d = object.visionDistance;
+          float theta = object.visionBearing;
 
-      //     Eigen::Vector2f z;
-      //     z << d, theta;
 
-      //     Eigen::Vector2f mean;
-      //     mean << d_pred, theta_pred;
+          Eigen::Vector2f z;
+          z << d, theta;
 
-      //     Eigen::Matrix2f covar;
-      //     covar << 1, 0, 0, 1;
+          Eigen::Vector2f mean;
+          mean << d_pred, theta_pred;
 
-      //     w *= (1 / (2*M_PI*sqrt(covar.determinant())))*exp((-0.5*(z-mean).transpose()*covar.inverse()*(z-mean))[0, 0]);
-      //   }
-      // }
+          Eigen::Matrix2f covar;
+          covar << 10, 0, 0, 10;
+
+          float prob = (1 / (2*M_PI*sqrt(covar.determinant())))*exp((-0.5*(z-mean).transpose()*covar.inverse()*(z-mean))[0, 0]);
+
+
+
+          w *= prob;
+
+
+          if(prob != 0){
+            std::cout << "=======================================" << std::endl;
+            //std::cout << p.x << ", "<< p.y << ", "<< p.t << ", "<< p.w << std::endl;
+            std::cout << x << ", "<< y << ", "<< t << ", "<< p.w << std::endl;
+            //std::cout << disp.translation.x << ", "<< disp.translation.y << ", "<< disp.rotation << std::endl;
+            //std::cout << disp.translation.x*cos(p.t) << ", "<< disp.translation.y*sin(p.t) << std::endl;
+            std::cout << "=======================================" << std::endl;
+            std::cout << d << " " << theta << " " << d_pred << " " << theta_pred << std::endl;
+            std::cout << prob << std::endl;
+            std::cout << "=======================================" << std::endl;
+            std::cout << std::endl;
+
+          }
+
+        }
+      }
+
+
       eta += w;
 
       new_particles[i] = {x, y, t, w};
