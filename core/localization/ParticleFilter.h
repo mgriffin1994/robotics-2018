@@ -4,6 +4,8 @@
 #include <memory/MemoryCache.h>
 #include <memory/LocalizationBlock.h>
 #include <localization/Logging.h>
+#include <memory/WorldObjectBlock.h>
+
 
 class ParticleFilter {
   public:

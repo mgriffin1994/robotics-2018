@@ -2,6 +2,15 @@
 #include <memory/FrameInfoBlock.h>
 #include <memory/OdometryBlock.h>
 #include <common/Random.h>
+#include <math.h>
+#include <Eigen/Eigen>
+#include <Eigen/Core>
+#include <Eigen/Dense>
+//#include <vision/BeaconDetector.h>
+
+using namespace Eigen;
+
+
 
 ParticleFilter::ParticleFilter(MemoryCache& cache, TextLogger*& tlogger) 
   : cache_(cache), tlogger_(tlogger), dirty_(true) {
@@ -17,10 +26,11 @@ void ParticleFilter::init(Point2D loc, float orientation) {
   // Prior distribution
   // TODO: Revert to this if robot kidnapped
   for(auto& p : particles()) {
-    p.x = Random::inst().sampleU() * 250; //static_cast<int>(frame * 5), 250);
-    p.y = Random::inst().sampleU() * 250; // 0., 250);
-    p.t = Random::inst().sampleU() * M_PI / 4;  //0., M_PI / 4);
-    p.w = Random::inst().sampleU();
+    //±2500,±1250
+    p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
+    p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
+    p.t = Random::inst().sampleU() * M_PI - M_PI/2.0;  //0., M_PI / 4);
+    p.w = 1.0/num_particles;
   }
 }
 
@@ -28,62 +38,105 @@ void ParticleFilter::processFrame() {
   // Indicate that the cached mean needs to be updated
   dirty_ = true;
 
+  float current_angle = 0.0;
+   
+  static map<WorldObjectType, Point2D> beacon_locs = {
+        { WO_BEACON_BLUE_YELLOW,    Point2D(1500, 1000) },
+        { WO_BEACON_YELLOW_BLUE,    Point2D(1500, -1000) },
+        { WO_BEACON_BLUE_PINK,      Point2D(0, 1000) },
+        { WO_BEACON_PINK_BLUE,      Point2D(0, -1000) },
+        { WO_BEACON_PINK_YELLOW,    Point2D(-1500, 1000) },
+        { WO_BEACON_YELLOW_PINK,    Point2D(-1500, -1000) }
+    }; 
+
   // Retrieve odometry update - how do we integrate this into the filter?
   const auto& disp = cache_.odometry->displacement;
   log(41, "Updating particles from odometry: %2.f,%2.f @ %2.2f", disp.translation.x, disp.translation.y, disp.rotation * RAD_T_DEG);
   
-  auto frame = cache_.frame_info->frame_id;
-
+  std::vector<Particle>& new_particles = particles();
   std::vector<Particle> resampled;
   float c[num_particles] = {};
-  c[0] = particles()[0].w;
+  c[0] = new_particles[0].w;
+
+  // std::cout << "This is c" << std::endl;
 
   for (int i = 1; i < num_particles; ++i) {
-      c[i] = c[i - 1] + particles()[i].w;
+      c[i] = c[i - 1] + new_particles[i].w;
+      // std::cout << c[i] << std::endl;
   }
 
-  int i = 1;
+  int i = 0;
 
-  float u[num_particles + 1] = {};
-  u[0] = Random::inst().sampleU((float) 1/num_particles);
+  float u = Random::inst().sampleU(1.0/num_particles);
+
+  // std::cout << "This is u" << std::endl;
+  // std::cout << u << std::endl;
+
+  // std::cout << "This is new_p and u" << std::endl;
 
   for (int j = 0; j < num_particles; ++j) {
-      while (u[j] > c[i]) {
+      while (u > c[i]) {
           i++;
       }
 
-      Particle new_p = particles()[i];
-      new_p.w = (float) 1/num_particles;
+      Particle new_p = new_particles[i];
+      new_p.w = 1.0/num_particles;
       resampled.push_back(new_p);
-      u[j + 1] = u[j] + (float) 1/num_particles;
+      u += 1.0/num_particles;
+      // std::cout << new_p.x << " "<< new_p.y << " "<< new_p.t << " "<< new_p.w << std::endl;
+      // std::cout << u << std::endl;
   }
 
-  std::vector<Particle> new_particles;
   float eta = 0.0;
+
+  for(int i = 0; i < num_particles; ++i){
+    new_particles[i] = resampled[i];
+  }
 
   // Generate new samples from resampled particles
   for (int i = 0; i < num_particles; ++i) {
       Particle& p = resampled[i];
 
-      // TODO: Change from 0.5?
-      float x = Random::inst().sampleN() * 250 + 0.5 * (disp.translation.x + p.x);
-      float y = Random::inst().sampleN() * 250 + 0.5 * (disp.translation.y + p.y);
-      float t = Random::inst().sampleN() * M_PI / 4 + 0.5 * (disp.rotation + p.t);
+      // TODO: Mess with noise
+      float x = Random::inst().sampleN() * 10 + disp.translation.x + p.x;
+      float y = Random::inst().sampleN() * 10 + disp.translation.y + p.y;
+      float t = Random::inst().sampleN() * M_PI / 4 + disp.rotation + p.t;
+      
+      float w = 1.0;
 
-      // TODO: Compute importance weight here from Normal cdf
-      float w = 0.5;
+      // for(auto beacon : beacon_locs) {
+      //   auto& object = cache_.world_object->objects_[beacon.first];
+      //   float xo = beacon.second.x;
+      //   float yo = beacon.second.y;
+
+      //   if(object.seen){
+      //     float d_pred = sqrt(pow(x - xo, 2) + pow(y-yo, 2));
+      //     float theta_pred = atan2(y-yo, x-xo) - t;
+      //     
+      //     float d = object.visionDistance;
+      //     float theta = object.visionBearing;
+
+      //     Eigen::Vector2f z;
+      //     z << d, theta;
+
+      //     Eigen::Vector2f mean;
+      //     mean << d_pred, theta_pred;
+
+      //     Eigen::Matrix2f covar;
+      //     covar << 1, 0, 0, 1;
+
+      //     w *= (1 / (2*M_PI*sqrt(covar.determinant())))*exp((-0.5*(z-mean).transpose()*covar.inverse()*(z-mean))[0, 0]);
+      //   }
+      // }
       eta += w;
 
-      Particle new_p = {x, y, t, w};
-      new_particles.push_back(new_p);
+      new_particles[i] = {x, y, t, w};
   }
 
   // Normalize weights
   for (auto& p : new_particles) {
       p.w /= eta;
   }
-
-  particles() = new_particles;
 }
 
 const Pose2D& ParticleFilter::pose() const {
