@@ -104,7 +104,7 @@ void ParticleFilter::processFrame() {
       // NOTE: new_pT is absolute angle for the particle, theta is relative angle from the robot, theta_pred is relative angle from the particle
       float new_pX = Random::inst().sampleN()*20 + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
       float new_pY = Random::inst().sampleN()*20 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
-      float new_pT = Random::inst().sampleN()*(M_PI/32) + disp.rotation + p.t;
+      float new_pT = Random::inst().sampleN()*(M_PI/16) + disp.rotation + p.t;
 
       float w = 1.0;
 
@@ -128,7 +128,7 @@ void ParticleFilter::processFrame() {
           mean << d_pred, theta_pred;
 
           Eigen::Matrix2f covar;
-          covar << 10, 0, 0, 10;
+          covar << 500, 0, 0, 1.25;
 
           float prob = (1 / (2*M_PI*sqrt(covar.determinant())))*exp((-0.5*(z-mean).transpose()*covar.inverse()*(z-mean)));
 
