@@ -37,10 +37,10 @@ void ParticleFilter::init(Point2D loc, float orientation) {
 void ParticleFilter::processFrame() {
   // Indicate that the cached mean needs to be updated
 
+  /*std::cout << std::endl;
   std::cout << std::endl;
   std::cout << std::endl;
-  std::cout << std::endl;
-  std::cout << "New frame" << std::endl;
+  std::cout << "New frame" << std::endl;*/
 
   dirty_ = true;
 
@@ -64,6 +64,12 @@ void ParticleFilter::processFrame() {
   float c[num_particles] = {};
   c[0] = new_particles[0].w;
 
+  // TODO: If average liklihood of estimate becomes too low, 
+  // reseed (either with hypothesis from visible beacons (or history of beacons))
+  // or just reseed with uniform particles everywhere again
+  // Reseed periodically to prevent against kidnapped robot?
+  // Resample only if no movement
+
   // std::cout << "This is c" << std::endl;
 
   for (int i = 1; i < num_particles; ++i) {
@@ -72,14 +78,12 @@ void ParticleFilter::processFrame() {
   }
 
   int i = 0;
-
   float u = Random::inst().sampleU(1.0/num_particles);
 
   // std::cout << "This is u" << std::endl;
   // std::cout << u << std::endl;
 
   // std::cout << "This is new_p and u" << std::endl;
-
   for (int j = 0; j < num_particles; ++j) {
       while (u > c[i]) {
           i++;
@@ -94,13 +98,13 @@ void ParticleFilter::processFrame() {
   }
 
   float eta = 0.0;
-  std::cout << num_particles << std::endl;
+  float avg_prob = 0;
+  //std::cout << num_particles << std::endl;
 
   // Generate new samples from resampled particles
   for (int i = 0; i < num_particles; ++i) {
       Particle& p = resampled[i];
 
-      // TODO: Mess with noise
       // NOTE: new_pT is absolute angle for the particle, theta is relative angle from the robot, theta_pred is relative angle from the particle
       float new_pX = Random::inst().sampleN()*20 + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
       float new_pY = Random::inst().sampleN()*20 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
@@ -118,7 +122,6 @@ void ParticleFilter::processFrame() {
           float d = object.visionDistance;
           float theta = object.visionBearing;
 
-//           float theta_pred = atan2(beaconY-new_pY, beaconX-new_pX);
           float theta_pred = atan2(beaconY-new_pY, beaconX-new_pX) - new_pT; // TODO: pretty sure this is right - Justin and the goose man
 
           Eigen::Vector2f z;
@@ -128,30 +131,46 @@ void ParticleFilter::processFrame() {
           mean << d_pred, theta_pred;
 
           Eigen::Matrix2f covar;
-          covar << 500, 0, 0, 1.25;
+          covar << 10000, 0, 0, 0.15;
+          //covar << 9.53023146e+03, -2.99987068e-02, -2.99987068e-02, 3.16690503e-06;
+
+          //covar << 9.53023146e+03, -2.99987068e-02, -2.99987068e-02, 3.16690503e-06;
+
+          /*[[  7.47232300e+02   1.13351948e-02]
+            [  1.13351948e-02   1.96148594e-06]]*/
+
+          //distance var is so much higher than theta, that theta mostly ignored
+
+          //In the paper referenced in class, just uses two univariate gaussians, one for each of distance and  angle
+          //  and then averages the two liklihoods together
+          //  this way is probably better, since can handle covariances, but need to make sure ratio of variances is appropriate
+
+          float dist_prob = 1/(sqrt(2*M_PI*covar(0, 0)))*exp(-0.5*pow(d_pred - d, 2) / covar(0, 0));
+          float theta_prob = 1/(sqrt(2*M_PI*covar(1, 1)))*exp(-0.5*pow(theta_pred - theta, 2) / covar(1, 1));
 
           float prob = (1 / (2*M_PI*sqrt(covar.determinant())))*exp((-0.5*(z-mean).transpose()*covar.inverse()*(z-mean)));
 
           // std::cout << "prob one-liner: " << prob << std::endl;
 
           w *= prob;
+          avg_prob += prob;
+        }
+      }
 
-          if((p.x > 0 && p.x < 1500) && (p.y > 0 && p.y < 1000)){
+      /*if((p.x > -1500 && p.x < 1500) && (p.y > -1000 && p.y < 1000) && w >= 0){
               std::cout << "=======================================" << std::endl;
-              std::cout << "z - mean: " << z - mean << std::endl;
+              //std::cout << "z - mean: " << z - mean << std::endl;
               //std::cout << p.x << ", "<< p.y << ", "<< p.t << ", "<< p.w << std::endl;
               std::cout << "particle x, y, t degrees, w:  " << new_pX << " | "<< new_pY << " | "<< new_pT * 180 / M_PI << " | "<< p.w << std::endl;
               //std::cout << disp.translation.x << ", "<< disp.translation.y << ", "<< disp.rotation << std::endl;
               //std::cout << disp.translation.x*cos(p.t) << ", "<< disp.translation.y*sin(p.t) << std::endl;
-              std::cout << "=======================================" << std::endl;
+              //std::cout << "=======================================" << std::endl;
               std::cout << "object d, theta degrees, d_pred, theta_pred degrees:  " << d << " | " << theta * 180 / M_PI << " | " << d_pred << " | " << theta_pred * 180 / M_PI << std::endl;
-              std::cout << "prob:  " << prob << std::endl;
+              std::cout << "total prob:  " << prob << std::endl;
+              std::cout << "dist prob, theta prob:  " << dist_prob << " | " << theta_prob << std::endl;
               std::cout << "=======================================" << std::endl;
               std::cout << std::endl;
-          }
-
-        }
-      }
+          }*/
 
       eta += w;
 
@@ -159,6 +178,28 @@ void ParticleFilter::processFrame() {
   }
 
   // std::cout << "ETA: " << eta << std::endl;
+
+  avg_prob /= num_particles;
+  std::cout << "=======================================" << std::endl;
+  std::cout << "avg prob:  " << avg_prob << std::endl;
+  std::cout << "=======================================" << std::endl;
+
+  // Resample some particles if avg_prob is too low
+  // TODO: This works but we might have to mess with the noise values
+  // Also, we should only do this if our avg_prob has been 0 for too long
+  // sampleN or sampleU? From current particle position or entire field?
+  if (avg_prob == 0.0) {
+      for (auto& p : new_particles) {
+          p.x = Random::inst().sampleN()*50 + p.x;
+          p.y = Random::inst().sampleN()*50 + p.y;
+          p.t = Random::inst().sampleN()*(M_PI/8) + p.t;
+          // p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
+          // p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
+          // p.t = Random::inst().sampleU() * M_PI - M_PI/2.0;  //0., M_PI / 4);
+          // How to normalize weights after this?
+          // p.w = 1.0/num_particles;
+      }
+  }
 
   // Normalize weights
   for (auto& p : new_particles) {
@@ -182,3 +223,4 @@ const Pose2D& ParticleFilter::pose() const {
   }
   return mean_;
 }
+
