@@ -25,7 +25,7 @@ class ParticleFilter {
   private:
     MemoryCache& cache_;
     TextLogger*& tlogger_;
-    int num_particles = 1000;
+    int num_particles = 100;
 
     mutable Pose2D mean_;
     mutable bool dirty_;
