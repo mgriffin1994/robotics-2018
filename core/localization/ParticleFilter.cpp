@@ -24,14 +24,14 @@ void ParticleFilter::init(Point2D loc, float orientation) {
   particles().resize(num_particles);
 
   // Prior distribution
-  // TODO: Revert to this if robot kidnapped
   for(auto& p : particles()) {
-    //±2500,±1250
-    p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
-    p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
-    p.t = Random::inst().sampleU() * M_PI - M_PI/2.0;  //0., M_PI / 4);
-    p.w = 1.0/num_particles;
+      //±2500,±1250
+      p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
+      p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
+      p.t = Random::inst().sampleU() * 2*M_PI - M_PI;  //0., M_PI / 4);
+      p.w = 1.0/num_particles;
   }
+  kidnapped = false;
 }
 
 void ParticleFilter::processFrame() {
@@ -43,8 +43,6 @@ void ParticleFilter::processFrame() {
   std::cout << "New frame" << std::endl;*/
 
   dirty_ = true;
-
-  float current_angle = 0.0;
 
   static map<WorldObjectType, Point2D> beacon_locs = {
         { WO_BEACON_BLUE_YELLOW,    Point2D(1500, 1000) },
@@ -64,7 +62,7 @@ void ParticleFilter::processFrame() {
   float c[num_particles] = {};
   c[0] = new_particles[0].w;
 
-  // TODO: If average liklihood of estimate becomes too low, 
+  // TODO: If average liklihood of estimate becomes too low,
   // reseed (either with hypothesis from visible beacons (or history of beacons))
   // or just reseed with uniform particles everywhere again
   // Reseed periodically to prevent against kidnapped robot?
@@ -100,15 +98,35 @@ void ParticleFilter::processFrame() {
   float eta = 0.0;
   float avg_prob = 0;
   //std::cout << num_particles << std::endl;
+  float avg_px, avg_py, avg_pt = 0;
 
   // Generate new samples from resampled particles
   for (int i = 0; i < num_particles; ++i) {
       Particle& p = resampled[i];
 
       // NOTE: new_pT is absolute angle for the particle, theta is relative angle from the robot, theta_pred is relative angle from the particle
-      float new_pX = Random::inst().sampleN()*20 + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
-      float new_pY = Random::inst().sampleN()*20 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
-      float new_pT = Random::inst().sampleN()*(M_PI/16) + disp.rotation + p.t;
+      float new_pX = Random::inst().sampleN()*30 + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
+      float new_pY = Random::inst().sampleN()*30 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
+      float new_pT = Random::inst().sampleN()*(M_PI/4) + disp.rotation + p.t;
+
+      // Tighten it up! if completely stationary
+      // TODO: make sure these actually become 0 when turn in place, if not zero the add back angle stuff above (disp.translation.x*cos(p.t) etc)
+      if (disp.translation.x == 0 && disp.translation.y == 0) {
+           new_pX = Random::inst().sampleN()*1 + p.x;
+           new_pY = Random::inst().sampleN()*1 + p.y;
+       } else if (disp.translation.x == 0) {
+           new_pX = Random::inst().sampleN()*10 + p.x;
+           new_pY = Random::inst().sampleN()*10 + p.y;
+      } else if (disp.translation.y == 0) {
+          new_pX = Random::inst().sampleN()*10 + p.x;
+          new_pY = Random::inst().sampleN()*10 + p.y;
+      }
+
+      // Tighten it up! if not turning
+      // TODO: make sure these actually become 0 when moving and not turning
+       if (disp.rotation == 0) {
+           new_pT = Random::inst().sampleN()*(M_PI/8) + p.t;
+       }
 
       float w = 1.0;
 
@@ -121,8 +139,18 @@ void ParticleFilter::processFrame() {
           float d_pred = sqrt(pow(new_pX - beaconX, 2) + pow(new_pY-beaconY, 2));
           float d = object.visionDistance;
           float theta = object.visionBearing;
+          float theta_pred = atan2(beaconY-new_pY, beaconX-new_pX) - new_pT;
 
-          float theta_pred = atan2(beaconY-new_pY, beaconX-new_pX) - new_pT; // TODO: pretty sure this is right - Justin and the goose man
+          // TODO: Check for case when both are close to pi, -pi
+          theta = std::fmod(theta + M_PI, 2 * M_PI);
+		  if (theta < 0)
+              theta += 2 * M_PI;
+          theta -= M_PI;
+
+          theta_pred = std::fmod(theta_pred + M_PI, 2 * M_PI);
+          if (theta_pred < 0)
+              theta_pred += 2 * M_PI;
+          theta_pred -= M_PI;
 
           Eigen::Vector2f z;
           z << d, theta;
@@ -131,15 +159,24 @@ void ParticleFilter::processFrame() {
           mean << d_pred, theta_pred;
 
           Eigen::Matrix2f covar;
-          covar << 10000, 0, 0, 0.15;
+          covar << 10000, 0, 0, .1; // TODO: Change theta variance
+
+          Eigen::Vector2f diff;
+          diff[0] = d - d_pred;
+          // diff[1] = cos(theta - theta_pred);
+          diff[1] = theta - theta_pred;
+
+          diff[1] = std::fmod(diff[1] + M_PI, 2 * M_PI);
+          if (diff[1] < 0)
+              diff[1] += 2 * M_PI;
+          diff[1] -= M_PI;
+
           //covar << 9.53023146e+03, -2.99987068e-02, -2.99987068e-02, 3.16690503e-06;
 
           //covar << 9.53023146e+03, -2.99987068e-02, -2.99987068e-02, 3.16690503e-06;
 
           /*[[  7.47232300e+02   1.13351948e-02]
             [  1.13351948e-02   1.96148594e-06]]*/
-
-          //distance var is so much higher than theta, that theta mostly ignored
 
           //In the paper referenced in class, just uses two univariate gaussians, one for each of distance and  angle
           //  and then averages the two liklihoods together
@@ -148,31 +185,37 @@ void ParticleFilter::processFrame() {
           float dist_prob = 1/(sqrt(2*M_PI*covar(0, 0)))*exp(-0.5*pow(d_pred - d, 2) / covar(0, 0));
           float theta_prob = 1/(sqrt(2*M_PI*covar(1, 1)))*exp(-0.5*pow(theta_pred - theta, 2) / covar(1, 1));
 
-          float prob = (1 / (2*M_PI*sqrt(covar.determinant())))*exp((-0.5*(z-mean).transpose()*covar.inverse()*(z-mean)));
+          float prob = (1 / (2*M_PI*sqrt(covar.determinant())))*exp((-0.5*(diff).transpose()*covar.inverse()*(diff)));
 
           // std::cout << "prob one-liner: " << prob << std::endl;
 
-          w *= prob;
-          avg_prob += prob;
+           w *= prob;
+//           avg_prob += prob;
         }
       }
 
-      /*if((p.x > -1500 && p.x < 1500) && (p.y > -1000 && p.y < 1000) && w >= 0){
-              std::cout << "=======================================" << std::endl;
-              //std::cout << "z - mean: " << z - mean << std::endl;
-              //std::cout << p.x << ", "<< p.y << ", "<< p.t << ", "<< p.w << std::endl;
-              std::cout << "particle x, y, t degrees, w:  " << new_pX << " | "<< new_pY << " | "<< new_pT * 180 / M_PI << " | "<< p.w << std::endl;
-              //std::cout << disp.translation.x << ", "<< disp.translation.y << ", "<< disp.rotation << std::endl;
-              //std::cout << disp.translation.x*cos(p.t) << ", "<< disp.translation.y*sin(p.t) << std::endl;
-              //std::cout << "=======================================" << std::endl;
-              std::cout << "object d, theta degrees, d_pred, theta_pred degrees:  " << d << " | " << theta * 180 / M_PI << " | " << d_pred << " | " << theta_pred * 180 / M_PI << std::endl;
-              std::cout << "total prob:  " << prob << std::endl;
-              std::cout << "dist prob, theta prob:  " << dist_prob << " | " << theta_prob << std::endl;
-              std::cout << "=======================================" << std::endl;
-              std::cout << std::endl;
-          }*/
+      avg_prob += w;
+
+//      if((p.x > -1500 && p.x < 1500) && (p.y > -1000 && p.y < 1000) && w >= 0){
+//          std::cout << "=======================================" << std::endl;
+//          //std::cout << "z - mean: " << z - mean << std::endl;
+//          //std::cout << p.x << ", "<< p.y << ", "<< p.t << ", "<< p.w << std::endl;
+//          std::cout << "particle x, y, t degrees, w:  " << new_pX << " | "<< new_pY << " | "<< new_pT * 180 / M_PI << " | "<< p.w << std::endl;
+//          //std::cout << disp.translation.x << ", "<< disp.translation.y << ", "<< disp.rotation << std::endl;
+//          //std::cout << disp.translation.x*cos(p.t) << ", "<< disp.translation.y*sin(p.t) << std::endl;
+//          //std::cout << "=======================================" << std::endl;
+//          std::cout << "object d, theta degrees, d_pred, theta_pred degrees:  " << d << " | " << theta * 180 / M_PI << " | " << d_pred << " | " << theta_pred * 180 / M_PI << std::endl;
+//          std::cout << "total prob:  " << prob << std::endl;
+//          std::cout << "dist prob, theta prob:  " << dist_prob << " | " << theta_prob << std::endl;
+//          std::cout << "=======================================" << std::endl;
+//          std::cout << std::endl;
+//      }
 
       eta += w;
+
+      avg_px += new_pX / num_particles;
+      avg_py += new_pY / num_particles;
+      avg_pt += new_pT / num_particles;
 
       new_particles[i] = {new_pX, new_pY, new_pT, w};
   }
@@ -184,15 +227,34 @@ void ParticleFilter::processFrame() {
   std::cout << "avg prob:  " << avg_prob << std::endl;
   std::cout << "=======================================" << std::endl;
 
+  // TODO: Check if kidnapped works in meatspace
+  BodyModelBlock* body_model = cache_.body_model;
+
+  if (!body_model->feet_on_ground_) {
+      kidnapped = true;
+  }
+
+  if (body_model->feet_on_ground_ && kidnapped) {
+      // Prior distribution
+      for(auto& p : particles()) {
+          //±2500,±1250
+          p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
+          p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
+          p.t = Random::inst().sampleU() * 2*M_PI - M_PI;  //0., M_PI / 4);
+          p.w = 1.0/num_particles;
+      }
+      kidnapped = false;
+  }
+
   // Resample some particles if avg_prob is too low
   // TODO: This works but we might have to mess with the noise values
   // Also, we should only do this if our avg_prob has been 0 for too long
   // sampleN or sampleU? From current particle position or entire field?
-  if (avg_prob == 0.0) {
+  if (avg_prob == 1.0) {
       for (auto& p : new_particles) {
-          p.x = Random::inst().sampleN()*50 + p.x;
-          p.y = Random::inst().sampleN()*50 + p.y;
-          p.t = Random::inst().sampleN()*(M_PI/8) + p.t;
+           p.x = Random::inst().sampleN()*40 + avg_px;
+           p.y = Random::inst().sampleN()*40 + avg_py;
+           p.t = Random::inst().sampleN()*(M_PI/8) + avg_pt;
           // p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
           // p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
           // p.t = Random::inst().sampleU() * M_PI - M_PI/2.0;  //0., M_PI / 4);
@@ -214,11 +276,11 @@ const Pose2D& ParticleFilter::pose() const {
     mean_ = Pose2D();
     using T = decltype(mean_.translation);
     for(const auto& p : particles()) {
-      mean_.translation += T(p.x,p.y);
-      mean_.rotation += p.t;
+      mean_.translation += T(p.x,p.y) * p.w;
+      mean_.rotation += p.t * p.w;
     }
-    if(particles().size() > 0)
-      mean_ /= static_cast<float>(particles().size());
+//    if(particles().size() > 0)
+//        mean_ /= static_cast<float>(particles().size());
     dirty_ = false;
   }
   return mean_;

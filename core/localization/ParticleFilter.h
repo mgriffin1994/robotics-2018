@@ -5,6 +5,7 @@
 #include <memory/LocalizationBlock.h>
 #include <localization/Logging.h>
 #include <memory/WorldObjectBlock.h>
+#include <memory/BodyModelBlock.h>
 
 
 class ParticleFilter {
@@ -25,7 +26,8 @@ class ParticleFilter {
   private:
     MemoryCache& cache_;
     TextLogger*& tlogger_;
-    int num_particles = 100;
+    int num_particles = 1000;
+    bool kidnapped;
 
     mutable Pose2D mean_;
     mutable bool dirty_;

@@ -5,7 +5,7 @@
 #include <memory/RobotStateBlock.h>
 #include <localization/ParticleFilter.h>
 #include <localization/Logging.h>
-#include <Eigen/Eigenvalues> 
+#include <Eigen/Eigenvalues>
 
 // Boilerplate
 LocalizationModule::LocalizationModule() : tlogger_(textlogger), pfilter_(new ParticleFilter(cache_, tlogger_)) {
@@ -23,6 +23,7 @@ void LocalizationModule::specifyMemoryDependency() {
   requiresMemoryBlock("robot_state");
   requiresMemoryBlock("game_state");
   requiresMemoryBlock("vision_odometry");
+  requiresMemoryBlock("body_model");
 }
 
 // Boilerplate
@@ -33,6 +34,7 @@ void LocalizationModule::specifyMemoryBlocks() {
   getOrAddMemoryBlock(cache_.robot_state,"robot_state");
   getOrAddMemoryBlock(cache_.game_state,"game_state");
   getOrAddMemoryBlock(cache_.odometry,"vision_odometry");
+  getOrAddMemoryBlock(cache_.body_model,"body_model");
 }
 
 
@@ -105,12 +107,12 @@ void LocalizationModule::processFrame() {
   self.loc = pfilter_->pose().translation;
   self.orientation = pfilter_->pose().rotation;
   log(40, "Localization Update: x=%2.f, y=%2.f, theta=%2.2f", self.loc.x, self.loc.y, self.orientation * RAD_T_DEG);
-    
+
   if(ball.seen) {
 
     Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign> xk = cache_.localization_mem->state;
     Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Pk = cache_.localization_mem->covariance;
-    
+
     Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign> xkBar = Eigen::Matrix<float, STATE_SIZE, 1, Eigen::DontAlign>::Zero();
 
 
@@ -155,7 +157,7 @@ void LocalizationModule::processFrame() {
 
     //std::cout << "*** C++ prints" << std::endl;
 
-    ball.absVel = Point2D((ball.loc.x - prevPoint.x) / timeDelta, 
+    ball.absVel = Point2D((ball.loc.x - prevPoint.x) / timeDelta,
             (ball.loc.y - prevPoint.y) / timeDelta);
 
     prevPoint = ball.loc;
@@ -220,7 +222,7 @@ void LocalizationModule::processFrame() {
 
     xk = xkBar + Kk*(zk - Hk*xkBar);
     Pk = (eye - Kk*Hk)*PkBar;
-    
+
     //Pk = 0.5*Pk + 0.5*Pk.transpose(); //make sure it's symmetric (already pretty close so won't change values too much)
     //float minEig = Pk.eigenvalues().real().minCoeff()
     //if(minEig <= 0) Pk += (0.00000001 + minEig)*eye;
@@ -265,7 +267,7 @@ void LocalizationModule::processFrame() {
         cache_.localization_mem->covariance = Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign>::Identity();
       } else {
 
-    //    
+    //
     //    xkBar = Ak*xk;
     //    Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> PkBar = (Ak*Pk)*Ak.transpose() + Qk;
     //
