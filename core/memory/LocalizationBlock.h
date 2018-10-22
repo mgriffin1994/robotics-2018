@@ -3,6 +3,7 @@
 #include <Eigen/Dense>
 #include <memory/MemoryBlock.h>
 #include <math/Geometry.h>
+#include <math/Pose2D.h>
 #include <localization/Particle.h>
 #include <schema/gen/LocalizationBlock_generated.h>
 #define STATE_SIZE 4
@@ -55,6 +56,7 @@ DECLARE_INTERNAL_SCHEMA(struct LocalizationBlock : public MemoryBlock {
     Point2D getBallPosition();
     Point2D getBallVel();
     Eigen::Matrix<float, 2, 2> getBallCov();
+
     //float getFriction();
     std::vector<Particle> particles;
     //SCHEMA_FIELD(std::vector<Particle> particles);

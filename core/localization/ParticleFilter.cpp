@@ -10,6 +10,7 @@
 
 using namespace Eigen;
 
+//#define MEAT
 
 
 ParticleFilter::ParticleFilter(MemoryCache& cache, TextLogger*& tlogger)
@@ -31,7 +32,9 @@ void ParticleFilter::init(Point2D loc, float orientation) {
       p.t = Random::inst().sampleU() * 2*M_PI - M_PI;  //0., M_PI / 4);
       p.w = 1.0/num_particles;
   }
+#ifdef MEAT
   kidnapped = false;
+#endif
 }
 
 void ParticleFilter::processFrame() {
@@ -98,7 +101,9 @@ void ParticleFilter::processFrame() {
   float eta = 0.0;
   float avg_prob = 0;
   //std::cout << num_particles << std::endl;
-  float avg_px, avg_py, avg_pt = 0;
+  float avg_px = 0.0;
+  float avg_py = 0.0;
+  float avg_pt = 0.0;
 
   // Generate new samples from resampled particles
   for (int i = 0; i < num_particles; ++i) {
@@ -109,24 +114,27 @@ void ParticleFilter::processFrame() {
       float new_pY = Random::inst().sampleN()*30 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
       float new_pT = Random::inst().sampleN()*(M_PI/4) + disp.rotation + p.t;
 
-      // Tighten it up! if completely stationary
+      // Tighten it up! if completely stationar
       // TODO: make sure these actually become 0 when turn in place, if not zero the add back angle stuff above (disp.translation.x*cos(p.t) etc)
       if (disp.translation.x == 0 && disp.translation.y == 0) {
-           new_pX = Random::inst().sampleN()*1 + p.x;
-           new_pY = Random::inst().sampleN()*1 + p.y;
-       } else if (disp.translation.x == 0) {
            new_pX = Random::inst().sampleN()*10 + p.x;
            new_pY = Random::inst().sampleN()*10 + p.y;
-      } else if (disp.translation.y == 0) {
-          new_pX = Random::inst().sampleN()*10 + p.x;
-          new_pY = Random::inst().sampleN()*10 + p.y;
-      }
+       } else if (disp.translation.x == 0 || disp.translation.y == 0) {
+           new_pX = Random::inst().sampleN()*20 + p.x;
+           new_pY = Random::inst().sampleN()*20 + p.y;
+      } 
 
       // Tighten it up! if not turning
       // TODO: make sure these actually become 0 when moving and not turning
-       if (disp.rotation == 0) {
-           new_pT = Random::inst().sampleN()*(M_PI/8) + p.t;
-       }
+      if (disp.rotation == 0) {
+          new_pT = Random::inst().sampleN()*(M_PI/8) + p.t;
+      }
+
+      new_pT = std::fmod(new_pT + M_PI, 2 * M_PI);
+      if (new_pT < 0)
+          new_pT += 2 * M_PI;
+      new_pT -= M_PI;
+
 
       float w = 1.0;
 
@@ -143,7 +151,7 @@ void ParticleFilter::processFrame() {
 
           // TODO: Check for case when both are close to pi, -pi
           theta = std::fmod(theta + M_PI, 2 * M_PI);
-		  if (theta < 0)
+		      if (theta < 0)
               theta += 2 * M_PI;
           theta -= M_PI;
 
@@ -190,7 +198,6 @@ void ParticleFilter::processFrame() {
           // std::cout << "prob one-liner: " << prob << std::endl;
 
            w *= prob;
-//           avg_prob += prob;
         }
       }
 
@@ -223,10 +230,11 @@ void ParticleFilter::processFrame() {
   // std::cout << "ETA: " << eta << std::endl;
 
   avg_prob /= num_particles;
-  std::cout << "=======================================" << std::endl;
-  std::cout << "avg prob:  " << avg_prob << std::endl;
-  std::cout << "=======================================" << std::endl;
+//  std::cout << "=======================================" << std::endl;
+//  std::cout << "avg prob:  " << avg_prob << std::endl;
+//  std::cout << "=======================================" << std::endl;
 
+#ifdef MEAT
   // TODO: Check if kidnapped works in meatspace
   BodyModelBlock* body_model = cache_.body_model;
 
@@ -236,7 +244,7 @@ void ParticleFilter::processFrame() {
 
   if (body_model->feet_on_ground_ && kidnapped) {
       // Prior distribution
-      for(auto& p : particles()) {
+      for(auto& p : new_particles()) {
           //±2500,±1250
           p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
           p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
@@ -245,16 +253,21 @@ void ParticleFilter::processFrame() {
       }
       kidnapped = false;
   }
+#endif
 
-  // Resample some particles if avg_prob is too low
-  // TODO: This works but we might have to mess with the noise values
-  // Also, we should only do this if our avg_prob has been 0 for too long
-  // sampleN or sampleU? From current particle position or entire field?
   if (avg_prob == 1.0) {
+      num_frames_lost++;
+  } else {
+      num_frames_lost = 0;
+  }
+
+  // TODO: Try messing with noise values
+  //       Or try periodically reseeding
+  if (avg_prob == 1.0 && num_frames_lost > 20) {
       for (auto& p : new_particles) {
-           p.x = Random::inst().sampleN()*40 + avg_px;
-           p.y = Random::inst().sampleN()*40 + avg_py;
-           p.t = Random::inst().sampleN()*(M_PI/8) + avg_pt;
+           p.x = Random::inst().sampleN()*100 + avg_px;
+           p.y = Random::inst().sampleN()*100 + avg_py;
+           p.t = Random::inst().sampleN()*(M_PI/2) + avg_pt;
           // p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
           // p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
           // p.t = Random::inst().sampleU() * M_PI - M_PI/2.0;  //0., M_PI / 4);

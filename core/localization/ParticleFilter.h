@@ -7,6 +7,7 @@
 #include <memory/WorldObjectBlock.h>
 #include <memory/BodyModelBlock.h>
 
+//#define MEAT
 
 class ParticleFilter {
   public:
@@ -27,6 +28,7 @@ class ParticleFilter {
     MemoryCache& cache_;
     TextLogger*& tlogger_;
     int num_particles = 1000;
+    int num_frames_lost = 0;
     bool kidnapped;
 
     mutable Pose2D mean_;

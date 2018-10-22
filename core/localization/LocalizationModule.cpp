@@ -23,7 +23,9 @@ void LocalizationModule::specifyMemoryDependency() {
   requiresMemoryBlock("robot_state");
   requiresMemoryBlock("game_state");
   requiresMemoryBlock("vision_odometry");
+#ifdef MEAT
   requiresMemoryBlock("body_model");
+#endif
 }
 
 // Boilerplate
@@ -34,7 +36,9 @@ void LocalizationModule::specifyMemoryBlocks() {
   getOrAddMemoryBlock(cache_.robot_state,"robot_state");
   getOrAddMemoryBlock(cache_.game_state,"game_state");
   getOrAddMemoryBlock(cache_.odometry,"vision_odometry");
+#ifdef MEAT
   getOrAddMemoryBlock(cache_.body_model,"body_model");
+#endif
 }
 
 
