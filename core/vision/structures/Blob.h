@@ -28,7 +28,7 @@ struct Blob {
   int edgeSize;
   int edgeStrength;
 
-  Blob() : lpIndex(MAX_BLOB_VISIONPOINTS, 0) { }
+  // Blob() : { }
 };
 
 inline ostream& operator<<(ostream &Str, Blob const& v) {

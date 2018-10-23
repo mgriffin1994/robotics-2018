@@ -10,8 +10,6 @@
 
 using namespace Eigen;
 
-//#define MEAT
-
 
 ParticleFilter::ParticleFilter(MemoryCache& cache, TextLogger*& tlogger)
   : cache_(cache), tlogger_(tlogger), dirty_(true) {
@@ -79,13 +77,15 @@ void ParticleFilter::processFrame() {
   }
 
   int i = 0;
-  float u = Random::inst().sampleU(1.0/num_particles);
+  float existing = 0.95;
+
+  float u = Random::inst().sampleU(1.0/(existing*num_particles));
 
   // std::cout << "This is u" << std::endl;
   // std::cout << u << std::endl;
 
   // std::cout << "This is new_p and u" << std::endl;
-  for (int j = 0; j < num_particles; ++j) {
+  for (int j = 0; j < int(existing*num_particles); ++j) {
       while (u > c[i]) {
           i++;
       }
@@ -96,6 +96,14 @@ void ParticleFilter::processFrame() {
       u += 1.0/num_particles;
       // std::cout << new_p.x << " "<< new_p.y << " "<< new_p.t << " "<< new_p.w << std::endl;
       // std::cout << u << std::endl;
+  }
+  for (int j = int(existing*num_particles); j < num_particles; ++j){
+      Particle new_p = new_particles[0];
+      new_p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
+      new_p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
+      new_p.t = Random::inst().sampleU() * 2*M_PI - M_PI;  //0., M_PI / 4);
+      new_p.w = 1.0/num_particles;
+      resampled.push_back(new_p);
   }
 
   float eta = 0.0;
@@ -110,24 +118,25 @@ void ParticleFilter::processFrame() {
       Particle& p = resampled[i];
 
       // NOTE: new_pT is absolute angle for the particle, theta is relative angle from the robot, theta_pred is relative angle from the particle
-      float new_pX = Random::inst().sampleN()*30 + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
-      float new_pY = Random::inst().sampleN()*30 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
-      float new_pT = Random::inst().sampleN()*(M_PI/4) + disp.rotation + p.t;
+      float new_pX = Random::inst().sampleN()*20 + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
+      float new_pY = Random::inst().sampleN()*20 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
+      float new_pT = Random::inst().sampleN()*(M_PI/8) + disp.rotation + p.t;
 
       // Tighten it up! if completely stationar
       // TODO: make sure these actually become 0 when turn in place, if not zero the add back angle stuff above (disp.translation.x*cos(p.t) etc)
       if (disp.translation.x == 0 && disp.translation.y == 0) {
-           new_pX = Random::inst().sampleN()*10 + p.x;
-           new_pY = Random::inst().sampleN()*10 + p.y;
-       } else if (disp.translation.x == 0 || disp.translation.y == 0) {
+           new_pX = Random::inst().sampleN() + p.x;
+           new_pY = Random::inst().sampleN() + p.y;
+           //new_pX = p.x;
+           //new_pY = p.y;
+       } /*else if (disp.translation.x == 0 || disp.translation.y == 0) {
            new_pX = Random::inst().sampleN()*20 + p.x;
            new_pY = Random::inst().sampleN()*20 + p.y;
-      } 
+      } */
 
-      // Tighten it up! if not turning
-      // TODO: make sure these actually become 0 when moving and not turning
       if (disp.rotation == 0) {
-          new_pT = Random::inst().sampleN()*(M_PI/8) + p.t;
+          new_pT = Random::inst().sampleN()*(M_PI/32) + p.t;
+          //new_pT = p.t;
       }
 
       new_pT = std::fmod(new_pT + M_PI, 2 * M_PI);
@@ -244,7 +253,8 @@ void ParticleFilter::processFrame() {
 
   if (body_model->feet_on_ground_ && kidnapped) {
       // Prior distribution
-      for(auto& p : new_particles()) {
+      std::cout << "Feet back on the ground, reseeding" << std::endl;
+      for(auto& p : new_particles) {
           //±2500,±1250
           p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
           p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
@@ -263,7 +273,7 @@ void ParticleFilter::processFrame() {
 
   // TODO: Try messing with noise values
   //       Or try periodically reseeding
-  if (avg_prob == 1.0 && num_frames_lost > 20) {
+  /*if (avg_prob == 1.0 && num_frames_lost > 20) {
       for (auto& p : new_particles) {
            p.x = Random::inst().sampleN()*100 + avg_px;
            p.y = Random::inst().sampleN()*100 + avg_py;
@@ -274,7 +284,7 @@ void ParticleFilter::processFrame() {
           // How to normalize weights after this?
           // p.w = 1.0/num_particles;
       }
-  }
+  }*/
 
   // Normalize weights
   for (auto& p : new_particles) {

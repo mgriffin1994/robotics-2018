@@ -111,7 +111,7 @@ class ApproachCenter(Node):
             y_error_avg = (y_error + sum(self.y_errors[-moving_avg_samples+1:])) / moving_avg_samples
 
 
-            theta_error = math.atan2(-rob_y, -rob_x) - rob_t
+            theta_error = rob_t - math.atan2(-rob_y, -rob_x)
             theta_error_avg = (theta_error + sum(self.theta_errors[-moving_avg_samples+1:])) / moving_avg_samples
             print('x_error', x_error, 'theta_error', theta_error)
 
@@ -176,8 +176,8 @@ class Ready(Task):
     def run(self):
         commands.setStiffness()
         commands.stand()
-        commands.setHeadTilt(0)
         if self.getTime() > 2.0:
+            commands.setHeadTilt(0)
             self.finish()
 
 class Playing(LoopingStateMachine):

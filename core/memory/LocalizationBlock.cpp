@@ -26,8 +26,7 @@ Matrix<float, 2, 2> LocalizationBlock::getBallCov() {
   return covariance.block<2,2>(0,0);
 }
 
-/*
-void LocalizationBlock::serialize(StreamBuffer& buffer, std::string) {
+/*void LocalizationBlock::serialize(StreamBuffer& buffer, std::string) {
   std::vector<StreamBuffer> parts(4);
   parts[0].read((unsigned char*)&header, sizeof(header));
   parts[1].read((unsigned char*)&state, sizeof(state));
@@ -49,5 +48,5 @@ bool LocalizationBlock::deserialize(const StreamBuffer& buffer, std::string) {
   parts[3].write(particles);
   StreamBuffer::clear(parts);
   return true;
-}
-*/
+}*/
+
