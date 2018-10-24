@@ -46,12 +46,12 @@ eps = 0.1
 max_length = 10
 max_int = 10
 moving_avg_samples = 3
-max_num_frames = 30
+max_num_frames = 100
 max_int_steps = 10 #if want to use all steps, then set to float("inf")
 
 center_distance_close = 50
 
-x_error_thresh = 100 #w/in 12 cm of center_distance_close around center
+x_error_thresh = 50 #w/in 12 cm of center_distance_close around center
 y_error_thresh = 0.1
 theta_error_thresh = math.pi / 8
 
@@ -83,6 +83,8 @@ class ApproachCenter(Node):
         self.num_frames_not_seen_beacon = max_num_frames
         self.num_beacons_seen = 0
         self.first_beacon = -1
+
+        self.unique_beacons_seen = set()
 
         self.frames = 0
         self.start_time = -1
@@ -190,7 +192,7 @@ class ApproachCenter(Node):
             if (abs(x_error_avg) < x_error_thresh or self.start_time != -1):
                 print("Within threshold")
                 commands.stand()
-                self.start_time = self.getTime()
+                self.start_time = self.getTime() if self.start_time == -1 else self.start_time
                 if self.getTime() - self.start_time > 10:
                     self.start_time = -1
             else:
@@ -202,23 +204,28 @@ class ApproachCenter(Node):
             self.prev_time = time
         
         else:
-            
-            beacon_count = sum(1 for i, beacon in enumerate(beacons_seen) if beacon and (i != self.first_beacon or self.first_beacon == -1))
-            self.num_beacons_seen += beacon_count
+            self.unique_beacons_seen |= set([i for i, beacon in enumerate(beacons_seen) if beacon])
 
-            if self.num_beacons_seen == 1:
-                self.first_beacon = next(i for i in enumerate(beacons_seen))
+            #beacon_count = sum(1 for i, beacon in enumerate(beacons_seen) if beacon and (i != self.first_beacon or self.first_beacon == -1))
+            #self.num_beacons_seen += beacon_count
 
-            if self.num_beacons_seen >= 2:
-                self.num_beacons_seen = 0
+            #if self.num_beacons_seen == 1:
+            #    self.first_beacon = next(i for i in enumerate(beacons_seen))
+
+            #if self.num_beacons_seen >= 2:
+            if len(self.unique_beacons_seen) > 3:
+                #self.num_beacons_seen = 0
                 self.num_frames_not_seen_beacon = 0
-                self.first_beacon = -1
+                #self.first_beacon = -1
+                self.unique_beacons_seen = set()
             else:
-                #commands.setWalkVelocity(0, 0, math.pi/3)
-                pass
+                commands.setWalkVelocity(0, 0, math.pi/3)
+                #pass
 
         if not any(beacons_seen):
             self.num_frames_not_seen_beacon += 1
+        if any(beacons_seen):
+            self.num_frames_not_seen_beacon = 0
 
 class Ready(Task):
     def run(self):
