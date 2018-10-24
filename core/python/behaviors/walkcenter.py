@@ -86,7 +86,7 @@ class ApproachCenter(Node):
 
     def run(self):
 
-        commands.setHeadTilt(0)
+        commands.setHeadTilt(5)
 
 
         # if self.frames < 300:
@@ -213,7 +213,7 @@ class Ready(Task):
         commands.setStiffness()
         #commands.setHeadPan(math.pi/3, 1.0)
         commands.stand()
-        commands.setHeadTilt(0)
+        commands.setHeadTilt(5)
 
         if self.getTime() > 3.0:
             self.finish()
