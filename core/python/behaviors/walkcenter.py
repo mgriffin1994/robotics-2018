@@ -81,7 +81,7 @@ class ApproachCenter(Node):
         self.start_driving = False
         self.avg_time_step = 0.01
 
-        self.num_frames_not_seen_beacon = max_num_frames
+        self.num_frames_not_seen_beacon = 0
         self.num_beacons_seen = 0
         self.first_beacon = -1
 
