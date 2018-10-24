@@ -20,12 +20,12 @@ import numpy as np
 
 x_kp = 1e-3
 x_ki = 0.0
-x_kd = 0.0
+x_kd = 1e-4
 y_kp = 0.0
 y_ki = 0.0
 y_kd = 0.0
-theta_kp = 0.75
-theta_kd = 0.0
+theta_kp = 2e-1
+theta_kd = 1e-2
 theta_ki = 0.0
 
 
@@ -45,13 +45,13 @@ eps = 0.1
 
 max_length = 10
 max_int = 10
-moving_avg_samples = 3
-max_num_frames = 100
+moving_avg_samples = 10
+max_num_frames = 200
 max_int_steps = 10 #if want to use all steps, then set to float("inf")
 
-center_distance_close = 50
+center_distance_close = 25
 
-x_error_thresh = 50 #w/in 12 cm of center_distance_close around center
+x_error_thresh = 100 #w/in 12 cm of center_distance_close around center
 y_error_thresh = 0.1
 theta_error_thresh = math.pi / 8
 
@@ -88,10 +88,11 @@ class ApproachCenter(Node):
 
         self.frames = 0
         self.start_time = -1
+        self.start_looking_time = -1
 
     def run(self):
 
-        commands.setHeadTilt(5)
+        commands.setHeadTilt(-15)
 
 
         # if self.frames < 300:
@@ -174,8 +175,8 @@ class ApproachCenter(Node):
             prev_x_avg = sum(self.x_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
             x_vel = x_kp*x_error_avg + (x_kd*(x_error_avg - prev_x_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step)))) + x_ki*(max(x_error + sum(self.x_errors), max_int))
 
-            if (x_vel < 0.05):
-                x_vel = 0.0
+            if (x_vel < 0.15):
+                x_vel = 0.15
 
 
             prev_y_avg = sum(self.y_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
@@ -185,10 +186,13 @@ class ApproachCenter(Node):
             prev_theta_avg = sum(self.theta_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
             theta_vel = theta_kp*theta_error_avg + (theta_kd*(theta_error_avg - prev_theta_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step)))) + theta_ki*(max(theta_error + sum(self.theta_errors), max_int))
 
+
+            #if (theta_vel < 0.05):
+            #    theta_vel = 0.0
+
             print('x_vel', x_vel, 'theta_vel', theta_vel)
 
-            
-
+            #TODO: turn in place if within x threshold?
             if (abs(x_error_avg) < x_error_thresh or self.start_time != -1):
                 print("Within threshold")
                 commands.stand()
@@ -198,13 +202,15 @@ class ApproachCenter(Node):
             else:
 
                 commands.setWalkVelocity(x_vel, 0, -theta_vel)
-                #commands.setWalkVelocity(0.3, 0, 0) #less than 0.2 goes backwards kinda
                 pass
 
             self.prev_time = time
         
         else:
+            self.start_looking_time = self.getTime() if self.start_looking_time == -1 else self.start_looking_time
             self.unique_beacons_seen |= set([i for i, beacon in enumerate(beacons_seen) if beacon])
+            print(self.getTime() - self.start_looking_time, len(self.unique_beacons_seen))
+            #print(self.unique_beacons_seen)
 
             #beacon_count = sum(1 for i, beacon in enumerate(beacons_seen) if beacon and (i != self.first_beacon or self.first_beacon == -1))
             #self.num_beacons_seen += beacon_count
@@ -213,26 +219,28 @@ class ApproachCenter(Node):
             #    self.first_beacon = next(i for i in enumerate(beacons_seen))
 
             #if self.num_beacons_seen >= 2:
-            if len(self.unique_beacons_seen) > 3:
+            if len(self.unique_beacons_seen) > 2 and self.getTime() - self.start_looking_time > 5:
                 #self.num_beacons_seen = 0
                 self.num_frames_not_seen_beacon = 0
+                self.start_looking_time = -1
                 #self.first_beacon = -1
                 self.unique_beacons_seen = set()
-            else:
+            elif len(self.unique_beacons_seen) <= 2:
                 commands.setWalkVelocity(0, 0, math.pi/3)
-                #pass
+                pass
+            elif len(self.unique_beacons_seen) > 2:
+                commands.setWalkVelocity(0, 0, 0)
+
 
         if not any(beacons_seen):
             self.num_frames_not_seen_beacon += 1
-        if any(beacons_seen):
-            self.num_frames_not_seen_beacon = 0
+        #if any(beacons_seen):
+        #    self.num_frames_not_seen_beacon = 0
 
 class Ready(Task):
     def run(self):
         commands.setStiffness()
-        #commands.setHeadPan(math.pi/3, 1.0)
         commands.stand()
-        commands.setHeadTilt(5)
 
         if self.getTime() > 3.0:
             self.finish()

@@ -55,12 +55,12 @@ void ParticleFilter::processFrame() {
     };*/
 
     static map<WorldObjectType, Point2D> beacon_locs = {
-        { WO_BEACON_BLUE_YELLOW,    Point2D(1400, 950) },
-        { WO_BEACON_YELLOW_BLUE,    Point2D(1400, -950) },
-        { WO_BEACON_BLUE_PINK,      Point2D(0, 950) },
-        { WO_BEACON_PINK_BLUE,      Point2D(0, -950) },
-        { WO_BEACON_PINK_YELLOW,    Point2D(-1400, 950) },
-        { WO_BEACON_YELLOW_PINK,    Point2D(-1400, -950) }
+        { WO_BEACON_BLUE_YELLOW,    Point2D(1500, 1000) },
+        { WO_BEACON_YELLOW_BLUE,    Point2D(1500, -1000) },
+        { WO_BEACON_BLUE_PINK,      Point2D(0, 1000) },
+        { WO_BEACON_PINK_BLUE,      Point2D(0, -1000) },
+        { WO_BEACON_PINK_YELLOW,    Point2D(-1500, 1000) },
+        { WO_BEACON_YELLOW_PINK,    Point2D(-1500, -1000) }
     };
 
   // Retrieve odometry update - how do we integrate this into the filter?
@@ -316,7 +316,7 @@ void ParticleFilter::processFrame() {
   // Normalize weights
   for (auto& p : new_particles) {
       if(eta == 0.0){
-        std::cout << "Eta is 0" << std::endl;
+        //std::cout << "Eta is 0" << std::endl;
         p.w = 1.0 / num_particles;
       }
       else p.w /= eta;
