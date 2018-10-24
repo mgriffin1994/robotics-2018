@@ -161,8 +161,8 @@ pair<Blob, Blob> BeaconDetector::findBeaconsOfType(const vector<Blob> &tb, const
     auto beacons = makeBeaconPairs(tblobs, bblobs);
 
     for(int i = 0; i < beacons.size(); ++i) {
-        //if(!validateInverted(beacons[i]) || !validateUp(beacons[i]))
-        //    continue;
+        if(!validateInverted(beacons[i]))
+            continue;
         return beacons[i];
     }
 

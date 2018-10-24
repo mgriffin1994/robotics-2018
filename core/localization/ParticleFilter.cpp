@@ -45,17 +45,27 @@ void ParticleFilter::processFrame() {
 
   dirty_ = true;
 
-  static map<WorldObjectType, Point2D> beacon_locs = {
+/*  static map<WorldObjectType, Point2D> beacon_locs = {
         { WO_BEACON_BLUE_YELLOW,    Point2D(1500, 1000) },
         { WO_BEACON_YELLOW_BLUE,    Point2D(1500, -1000) },
         { WO_BEACON_BLUE_PINK,      Point2D(0, 1000) },
         { WO_BEACON_PINK_BLUE,      Point2D(0, -1000) },
         { WO_BEACON_PINK_YELLOW,    Point2D(-1500, 1000) },
         { WO_BEACON_YELLOW_PINK,    Point2D(-1500, -1000) }
+    };*/
+
+    static map<WorldObjectType, Point2D> beacon_locs = {
+        { WO_BEACON_BLUE_YELLOW,    Point2D(1400, 950) },
+        { WO_BEACON_YELLOW_BLUE,    Point2D(1400, -950) },
+        { WO_BEACON_BLUE_PINK,      Point2D(0, 950) },
+        { WO_BEACON_PINK_BLUE,      Point2D(0, -950) },
+        { WO_BEACON_PINK_YELLOW,    Point2D(-1400, 950) },
+        { WO_BEACON_YELLOW_PINK,    Point2D(-1400, -950) }
     };
 
   // Retrieve odometry update - how do we integrate this into the filter?
   const auto& disp = cache_.odometry->displacement;
+  auto frame = cache_.frame_info->frame_id;
   log(41, "Updating particles from odometry: %2.f,%2.f @ %2.2f", disp.translation.x, disp.translation.y, disp.rotation * RAD_T_DEG);
 
   std::vector<Particle>& new_particles = particles();
@@ -77,7 +87,11 @@ void ParticleFilter::processFrame() {
   }
 
   int i = 0;
-  float existing = 0.95;
+  float existing = 1.0;
+
+  /*if (frame % num_frames_random == 0) {
+      existing = 0.95;
+  }*/
 
   float u = Random::inst().sampleU(1.0/(existing*num_particles));
 
@@ -99,9 +113,9 @@ void ParticleFilter::processFrame() {
   }
   for (int j = int(existing*num_particles); j < num_particles; ++j){
       Particle new_p = new_particles[0];
-      new_p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
-      new_p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
-      new_p.t = Random::inst().sampleU() * 2*M_PI - M_PI;  //0., M_PI / 4);
+      new_p.x = Random::inst().sampleN() * 200 + mean_.translation.x; //static_cast<int>(frame * 5), 250);
+      new_p.y = Random::inst().sampleN() * 200 + mean_.translation.y; // 0., 250);
+      new_p.t = Random::inst().sampleN() * 2*M_PI - M_PI;  //0., M_PI / 4);
       new_p.w = 1.0/num_particles;
       resampled.push_back(new_p);
   }
@@ -113,31 +127,42 @@ void ParticleFilter::processFrame() {
   float avg_py = 0.0;
   float avg_pt = 0.0;
 
+  /*if (abs(mean_.translation.x) > 2500 || abs(mean_.translation.y) > 1250) {
+      for(auto& p : particles()) {
+          //±2500,±1250
+          p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
+          p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
+          p.t = Random::inst().sampleU() * 2*M_PI - M_PI;  //0., M_PI / 4);
+          p.w = 1.0/num_particles;
+      }
+      return;
+  }*/
+
   // Generate new samples from resampled particles
   for (int i = 0; i < num_particles; ++i) {
       Particle& p = resampled[i];
 
       // NOTE: new_pT is absolute angle for the particle, theta is relative angle from the robot, theta_pred is relative angle from the particle
-      float new_pX = Random::inst().sampleN()*20 + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
-      float new_pY = Random::inst().sampleN()*20 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
-      float new_pT = Random::inst().sampleN()*(M_PI/8) + disp.rotation + p.t;
+      float new_pX = Random::inst().sampleN()*15 + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
+      float new_pY = Random::inst().sampleN()*15 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
+      float new_pT = Random::inst().sampleN()*(M_PI/32) + p.t + disp.rotation;
 
-      // Tighten it up! if completely stationar
+      // Tighten it up! if completely stationary
       // TODO: make sure these actually become 0 when turn in place, if not zero the add back angle stuff above (disp.translation.x*cos(p.t) etc)
-      if (disp.translation.x == 0 && disp.translation.y == 0) {
-           new_pX = Random::inst().sampleN() + p.x;
-           new_pY = Random::inst().sampleN() + p.y;
+      /*if (disp.translation.x != 0 || disp.translation.y != 0) {
+           new_pX = Random::inst().sampleN()*5 + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
+           new_pY = Random::inst().sampleN()*5 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
            //new_pX = p.x;
            //new_pY = p.y;
        } /*else if (disp.translation.x == 0 || disp.translation.y == 0) {
            new_pX = Random::inst().sampleN()*20 + p.x;
            new_pY = Random::inst().sampleN()*20 + p.y;
       } */
-
-      if (disp.rotation == 0) {
-          new_pT = Random::inst().sampleN()*(M_PI/32) + p.t;
+      /*
+      if (disp.rotation != 0) {
+          new_pT = Random::inst().sampleN()*(M_PI/32) + p.t + disp.rotation;
           //new_pT = p.t;
-      }
+      }*/
 
       new_pT = std::fmod(new_pT + M_PI, 2 * M_PI);
       if (new_pT < 0)
@@ -160,7 +185,7 @@ void ParticleFilter::processFrame() {
 
           // TODO: Check for case when both are close to pi, -pi
           theta = std::fmod(theta + M_PI, 2 * M_PI);
-		      if (theta < 0)
+          if (theta < 0)
               theta += 2 * M_PI;
           theta -= M_PI;
 
@@ -176,7 +201,7 @@ void ParticleFilter::processFrame() {
           mean << d_pred, theta_pred;
 
           Eigen::Matrix2f covar;
-          covar << 10000, 0, 0, .1; // TODO: Change theta variance
+          covar << 10000, 0, 0, .0005; // TODO: Change theta variance
 
           Eigen::Vector2f diff;
           diff[0] = d - d_pred;
