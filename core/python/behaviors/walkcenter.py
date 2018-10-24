@@ -18,13 +18,13 @@ import memory
 from memory import robot_state
 import numpy as np
 
-x_kp = 5e-4
+x_kp = 1e-3
 x_ki = 0.0
 x_kd = 0.0
 y_kp = 0.0
 y_ki = 0.0
 y_kd = 0.0
-theta_kp = 2e-1
+theta_kp = 0.75
 theta_kd = 0.0
 theta_ki = 0.0
 
@@ -59,6 +59,9 @@ vel_thresh = 0.1
 
 top_cam_width = 320
 bot_cam_width = 320
+
+def mymod(a, n):
+    return a - n * math.floor(a / n)
 
 
 class ApproachCenter(Node):
@@ -124,8 +127,8 @@ class ApproachCenter(Node):
         rob_x = rob.loc.x
         rob_y = rob.loc.y
         rob_t = rob.orientation
-        
-        print('rob_x', rob_x, 'rob_y', rob_y, 'rob_t', rob_t)
+        print()
+        #print('rob_x', rob_x, 'rob_y', rob_y, 'rob_t', rob_t)
 
         if self.num_frames_not_seen_beacon < max_num_frames:
 
@@ -138,9 +141,17 @@ class ApproachCenter(Node):
             y_error_avg = (y_error + sum(self.y_errors[-moving_avg_samples+1:])) / moving_avg_samples
 
 
-            theta_error = math.atan2(-rob_y, -rob_x) - rob_t
+            theta_error = rob_t - math.atan2(rob_y, rob_x) - math.pi
+            
+            theta_error = mymod(theta_error + math.pi, 2*math.pi)
+            theta_error = theta_error + math.pi if theta_error < 0 else theta_error - math.pi
+
             theta_error_avg = (theta_error + sum(self.theta_errors[-moving_avg_samples+1:])) / moving_avg_samples
+
+
+
             print('x_error', x_error, 'theta_error', theta_error)
+            print('x_error_avg', x_error_avg, 'theta_error_avg', theta_error_avg)
 
 
             ###Add to previous errors
@@ -183,9 +194,10 @@ class ApproachCenter(Node):
                 if self.getTime() - self.start_time > 10:
                     self.start_time = -1
             else:
-                commands.setWalkVelocity(x_vel, 0, theta_vel)
+
+                commands.setWalkVelocity(x_vel, 0, -theta_vel)
                 #commands.setWalkVelocity(0.3, 0, 0) #less than 0.2 goes backwards kinda
-                #pass
+                pass
 
             self.prev_time = time
         

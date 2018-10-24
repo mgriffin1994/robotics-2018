@@ -127,7 +127,8 @@ void ParticleFilter::processFrame() {
   float avg_py = 0.0;
   float avg_pt = 0.0;
 
-  /*if (abs(mean_.translation.x) > 2500 || abs(mean_.translation.y) > 1250) {
+  if (abs(mean_.translation.x) > 2500 || abs(mean_.translation.y) > 1250) {
+      cout << "Out of bounds" << std::endl;
       for(auto& p : particles()) {
           //±2500,±1250
           p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
@@ -136,7 +137,7 @@ void ParticleFilter::processFrame() {
           p.w = 1.0/num_particles;
       }
       return;
-  }*/
+  }
 
   // Generate new samples from resampled particles
   for (int i = 0; i < num_particles; ++i) {
@@ -311,9 +312,14 @@ void ParticleFilter::processFrame() {
       }
   }*/
 
+
   // Normalize weights
   for (auto& p : new_particles) {
-      p.w /= eta;
+      if(eta == 0.0){
+        std::cout << "Eta is 0" << std::endl;
+        p.w = 1.0 / num_particles;
+      }
+      else p.w /= eta;
       // std::cout << "Normalized p.w: " << p.w << std::endl;
   }
 }
