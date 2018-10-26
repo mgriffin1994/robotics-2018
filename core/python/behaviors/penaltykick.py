@@ -27,25 +27,26 @@ theta_kp = 0.75
 theta_ki = 0.0
 theta_kd = 1e-4
 
-max_length = 10
 max_int = 10
 moving_avg_samples = 3
 max_num_frames = 30
 max_int_steps = 10 # if want to use all steps, then set to float("inf")
 
-ball_distance_close = 50
-ball_right_foot = 0.67
-
 x_error_thresh = 120 # w/in 12 cm of ball_distance_close behind ball
 y_error_thresh = 0.1
 theta_error_thresh = 0.075
-
 vel_thresh = 0.1
-
-kick_distance = 1600 # half meter kick (should be able to do 1 meter kick for extra credit), also goal.visionDistance is to back of goal not front of goal
 
 top_cam_width = 320
 bot_cam_width = 320
+
+# TODO: change these so it doesn't dribble the ball too well into the penalty box
+kick_distance = 1600
+dribble_speed = 0.60
+
+ball_distance_close = 50
+ball_right_foot = 0.67
+
 
 
 class ApproachBall(Node):
@@ -67,8 +68,16 @@ class ApproachBall(Node):
         self.start_kick_frame = -1 # this variable is multipurpose (-1 means the kick has not been started, everything else means the frame number at which the kick started)
 
     def run(self):
+
+        ### Grab the ball and goal world objects
         ball = mem_objects.world_objects[core.WO_BALL]
         goal = mem_objects.world_objects[core.WO_UNKNOWN_GOAL]
+
+        ### Tilt the head so we can see more
+        commands.setHeadTilt(-18)
+
+        if (goal.seen):
+            print("goal seen")
 
         ### If we've seen the ball execute the PID loop
         if self.num_frames_not_seen_ball < max_num_frames:
@@ -121,7 +130,7 @@ class ApproachBall(Node):
             ### Keep track of previous ball and goal info
             self.prev_ball_distance = x_error + ball_distance_close
             self.prev_ball_centerx = ball_center if ball.seen else self.prev_ball_centerx
-            self.prev_goal_centerx = goal_center if goal.seen else self.prev_goal_centerx # TODO: fix
+            self.prev_goal_centerx = goal_center if goal.seen else self.prev_goal_centerx
 
             ### Get the time
             time = self.getTime()
@@ -148,8 +157,8 @@ class ApproachBall(Node):
                 if goal_distance_avg > kick_distance:
                     print('Dribbling')
                     self.start_dribbling = True
-                    commands.setWalkVelocity(0.75, 0, 0)
-                else
+                    commands.setWalkVelocity(dribble_speed, 0, 0)
+                else:
                     print('Kicking')
                     commands.kick()
                 self.start_kick_frame = self.getFrames() if self.start_kick_frame == -1 else self.start_kick_frame

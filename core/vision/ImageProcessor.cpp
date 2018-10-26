@@ -362,6 +362,8 @@ void ImageProcessor::detectGoal() {
     goal->seen = true;
 }
 
+// TODO: goal won't be this big, consider lowering a little
+#define GOAL_SIZE 2000
 
 void ImageProcessor::findGoal(int& imageX, int& imageY) {
     if(getSegImg() == NULL){
@@ -370,7 +372,7 @@ void ImageProcessor::findGoal(int& imageX, int& imageY) {
         // cout << "Goal not detected" << endl;
         return;
     }
-    auto blueBlobs = filterBlobs(detected_blobs, c_BLUE, 2000);
+    auto blueBlobs = filterBlobs(detected_blobs, c_BLUE, GOAL_SIZE);
     sort(blueBlobs.begin(), blueBlobs.end(), BlobCompare);
     if(blueBlobs.size() > 0) {
         // cout << "Goal detected at: " << blueBlobs[0].avgX << "\t" << blueBlobs[0].yf << endl;
