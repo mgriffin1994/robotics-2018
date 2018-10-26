@@ -21,13 +21,19 @@ time_delay = 1.0 / 30.
 center_region = 125
 x_thresh = 50
 
-# TODO: 
+# TODO:
 #   - Move to center of penalty box using localization/vision
 #   - Test different blocks
 #       - Develop different squat block, the one in pose.py sucks
 #   - Use Kalman filter to predict ball location and move, if necessary
 #       - Speed up prediction, blocking is too slow
 #   - Choose block to use (may need more than the three provided)
+
+# TODO:
+#  - could do open loop control (hack) to keep ball in center of view
+#    - keep track of the location of the ball
+#    - if it moves outside some threshold that is considered as the center of view
+#      - move in that direction by a small amount until the ball is in the center again
 
 class Blocker(Node):
 
@@ -53,9 +59,6 @@ class Blocker(Node):
         print("ball pos: ", ball.loc.x, ", ", ball.loc.y)
 
         x_vel, y_vel = ball_vel.x, ball_vel.y
-        #friction = localization_mem.getFriction()
-        friction = 0.5 
-        friction = 1.0
 
         #if ball.seen:
         #    angle = np.arctan((y_pos - rob_y)/(x_pos - rob_x + 1e-5))
@@ -63,9 +66,7 @@ class Blocker(Node):
         #else:
         #    commands.setHeadPan(0, 0.1)
 
-        #predicted_x = [x_pos + x_vel * time_delay * ((1 - (friction)**n) / (1 - friction)) for n in range(predict_frames)]
         predicted_x = [x_pos + x_vel * time_delay * n for n in np.arange(0.0, predict_secs, 0.1)]
-        #predicted_y = [y_pos + y_vel * time_delay * ((1 - (friction)**n) / (1 - friction)) for n in range(predict_frames)]
         predicted_y = [y_pos + y_vel * time_delay * n for n in np.arange(0.0, predict_secs, 0.1)]
 
         print("predicted x: ", predicted_x[0], ", ",  predicted_x[-1])
