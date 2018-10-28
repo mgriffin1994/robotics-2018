@@ -27,7 +27,7 @@ class ParticleFilter {
   private:
     MemoryCache& cache_;
     TextLogger*& tlogger_;
-    int num_particles = 100;
+    int num_particles = PARTICLE_NUM;
     int num_frames_random = 5;
     float prev_eta = 0.0;
     int num_frames_lost = 0;
