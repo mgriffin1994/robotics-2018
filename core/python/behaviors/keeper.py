@@ -35,14 +35,16 @@ class Blocker(Node):
         robot = mem_objects.world_objects[robot_state.WO_SELF]
 
 #         beacon = mem_objects.world_objects[core.WO_BEACON_BLUE_YELLOW]
-#         if beacon.seen:
-#            z = np.array([beacon.visionDistance, beacon.visionBearing])
-#            self.data.append(z)
-#            mat = np.array(self.data)
-#            print(mat.shape)
-#            if len(self.data) > 2:
-#                print(np.cov(mat.T))
-#            print()
+        ### print covariance matrix
+        if ball.seen:
+            print('=====================')
+            z = np.array([ball.visionDistance, ball.visionBearing])
+            self.data.append(z)
+            mat = np.array(self.data)
+            print(mat.shape)
+            if len(self.data) > 2:
+                print(np.cov(mat.T))
+            print()
 
 
         rob_x = robot.loc.x
@@ -51,10 +53,10 @@ class Blocker(Node):
         x_pos, y_pos = ball_pos.x, ball_pos.y
         ball_vel = localization_mem.getBallVel()
 
-        print()
-        print("=== python prints")
-        print("ball vel: ", ball.absVel.x, ", ", ball.absVel.y)
-        print("ball pos: ", ball.loc.x, ", ", ball.loc.y)
+#         print()
+#         print("=== python prints")
+#         print("ball vel: ", ball.absVel.x, ", ", ball.absVel.y)
+#         print("ball pos: ", ball.loc.x, ", ", ball.loc.y)
 
         x_vel, y_vel = ball_vel.x, ball_vel.y
 
@@ -67,10 +69,10 @@ class Blocker(Node):
         predicted_x = [x_pos + x_vel * time_delay * n for n in np.arange(0.0, predict_secs, 0.1)]
         predicted_y = [y_pos + y_vel * time_delay * n for n in np.arange(0.0, predict_secs, 0.1)]
 
-        print("predicted x: ", predicted_x[0], ", ",  predicted_x[-1])
-        print("predicted y: ", predicted_y[0], ", ",  predicted_y[-1])
-        print("robot x, y: ", rob_x, ", ", rob_y)
-        print("velocity x, y: ", x_vel, ", ", y_vel)
+#         print("predicted x: ", predicted_x[0], ", ",  predicted_x[-1])
+#         print("predicted y: ", predicted_y[0], ", ",  predicted_y[-1])
+#         print("robot x, y: ", rob_x, ", ", rob_y)
+#         print("velocity x, y: ", x_vel, ", ", y_vel)
 
         if ball.seen and any(x <= rob_x - x_thresh for x in predicted_x):
             possible_goal_frames = [i for i, x in enumerate(predicted_x) if x <= rob_x - x_thresh]
