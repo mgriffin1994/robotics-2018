@@ -11,6 +11,10 @@ alias snw='ssh nao@10.202.16.61'
 alias kick='bin/copy_robot kick 10.202.16.61'
 alias fastcompileall='bin/compile all --fast && send_all'
 alias ns='./nao_start.sh'
+alias nr='nao_restart'
+alias nc='nao_connect'
+alias nd='nao_disconnect'
+alias tk='tmux_kill'
 
 function nao_connect() {
     tmux select-pane -t 2;
