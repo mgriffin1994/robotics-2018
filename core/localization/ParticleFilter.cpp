@@ -11,6 +11,13 @@
 using namespace Eigen;
 
 
+float max3( float a, float b, float c )
+{
+   float max = ( a < b ) ? b : a;
+   return ( ( max < c ) ? c : max );
+}
+
+
 ParticleFilter::ParticleFilter(MemoryCache& cache, TextLogger*& tlogger)
   : cache_(cache), tlogger_(tlogger), dirty_(true) {
 }
@@ -62,12 +69,12 @@ void ParticleFilter::processFrame() {
     };*/
 
     static map<WorldObjectType, Point2D> beacon_locs = {
-        { WO_BEACON_BLUE_YELLOW,    Point2D(1500, 1000) },
-        { WO_BEACON_YELLOW_BLUE,    Point2D(1500, -1000) },
-        { WO_BEACON_BLUE_PINK,      Point2D(0, 1000) },
+        { WO_BEACON_BLUE_YELLOW,    Point2D(500, 1000) },
+        { WO_BEACON_YELLOW_BLUE,    Point2D(500, 1000) },
+        { WO_BEACON_BLUE_PINK,      Point2D(0, -1000) },
         { WO_BEACON_PINK_BLUE,      Point2D(0, -1000) },
-        { WO_BEACON_PINK_YELLOW,    Point2D(-1500, 1000) },
-        { WO_BEACON_YELLOW_PINK,    Point2D(-1500, -1000) }
+        { WO_BEACON_PINK_YELLOW,    Point2D(-500, 1000) },
+        { WO_BEACON_YELLOW_PINK,    Point2D(-500, 1000) }
     };
 
   // Retrieve odometry update - how do we integrate this into the filter?
@@ -148,34 +155,61 @@ void ParticleFilter::processFrame() {
       return;
   }
 
+  float lambda_x = max3(disp.translation.x*2.0, disp.translation.y*1.0, 10);
+  float lambda_y = max3(disp.translation.x*1.0, disp.translation.y*2.0, 10);
+  float lambda_t = max3(abs(disp.translation.x+disp.translation.y)*0.0, disp.rotation*2.7, 0.072);
+
+  std::cout << std::endl;
+  std::cout << "Lambda: " << lambda_x << " " << lambda_y << " " << lambda_t << std::endl;
+
+
   // Generate new samples from resampled particles
   for (int i = 0; i < num_particles; ++i) {
       Particle& p = resampled[i];
 
+
       // NOTE: new_pT is absolute angle for the particle, theta is relative angle from the robot, theta_pred is relative angle from the particle
       //This is fine, the sim just has odometry noise
-      float new_pX = Random::inst().sampleN()*5 + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
-      float new_pY = Random::inst().sampleN()*5 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
-      float new_pT = Random::inst().sampleN()*(M_PI/32) + p.t + disp.rotation;
+      // float new_pX = Random::inst().sampleN()*5 + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
+      // float new_pY = Random::inst().sampleN()*5 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
+      // float new_pT = Random::inst().sampleN()*(M_PI/32) + p.t + disp.rotation;
 
 
+
+
+      // float lambda_x = max3(disp.translation.x*2.0, disp.translation.y*1.0, 25);
+      // float lambda_y = max3(disp.translation.x*1.0, disp.translation.y*2.0, 25);
+      // float lambda_t = max3(abs(disp.translation.x+disp.translation.y)*0.002, disp.rotation*1.0, 0.1);
+
+      float delta_x = disp.translation.x + lambda_x*Random::inst().sampleN();
+      float delta_y = disp.translation.y + lambda_y*Random::inst().sampleN();
+      float delta_t = disp.rotation + lambda_t*Random::inst().sampleN();
+
+
+      float new_pX = p.x + delta_x*cos(p.t) + delta_y*sin(p.t);
+      float new_pY = p.y + delta_x*sin(p.t) - delta_y*cos(p.t);
+      float new_pT = p.t + delta_t;
 
       // Tighten it up! if completely stationary
-      // TODO: make sure these actually become 0 when turn in place, if not zero the add back angle stuff above (disp.translation.x*cos(p.t) etc)
-      if (disp.translation.x == 0 && disp.translation.y == 0) {
-           new_pX = Random::inst().sampleN() + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
-           new_pY = Random::inst().sampleN() + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
-           //new_pX = p.x;
-           //new_pY = p.y;
-       } /*else if (disp.translation.x == 0 || disp.translation.y == 0) {
-           new_pX = Random::inst().sampleN()*20 + p.x;
-           new_pY = Random::inst().sampleN()*20 + p.y;
-      } */
+      // if (disp.translation.x == 0 && disp.translation.y == 0) {
+      //      new_pX = Random::inst().sampleN() + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
+      //      new_pY = Random::inst().sampleN() + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
+      //      //new_pX = p.x;
+      //      //new_pY = p.y;
+      //  } /*else if (disp.translation.x == 0 || disp.translation.y == 0) {
+      //      new_pX = Random::inst().sampleN()*20 + p.x;
+      //      new_pY = Random::inst().sampleN()*20 + p.y;
+      // } */
       
-      if (disp.rotation == 0) {
-          new_pT = Random::inst().sampleN()*(M_PI/128) + p.t + disp.rotation;
-          //new_pT = p.t;
-      }
+      // if (disp.rotation == 0) {
+      //     new_pT = Random::inst().sampleN()*(M_PI/128) + p.t + disp.rotation;
+      //     //new_pT = p.t;
+      // }
+
+
+
+
+
 
       new_pT = std::fmod(new_pT + M_PI, 2 * M_PI);
       if (new_pT < 0)
@@ -216,7 +250,7 @@ void ParticleFilter::processFrame() {
           mean << d_pred, theta_pred;
 
           Eigen::Matrix2f covar;
-          covar << 10000, 0, 0, .0005; // TODO: Change theta variance
+          covar << 9530.23146, 0.0, 0.0, 0.00000316690503; // TODO: Change theta variance
 
           Eigen::Vector2f diff;
           diff[0] = d - d_pred;
@@ -241,11 +275,11 @@ void ParticleFilter::processFrame() {
           //  and then averages the two liklihoods together
           //  this way is probably better, since can handle covariances, but need to make sure ratio of variances is appropriate
 
-          float dist_prob = 1/(sqrt(2*M_PI*covar(0, 0)))*exp(-0.5*pow(d_pred - d, 2) / covar(0, 0));
-          float theta_prob = 1/(sqrt(2*M_PI*covar(1, 1)))*exp(-0.5*pow(theta_pred - theta, 2) / covar(1, 1));
-          float prob = dist_prob*theta_prob;
+          //float dist_prob = 1/(sqrt(2*M_PI*covar(0, 0)))*exp(-0.5*pow(d_pred - d, 2) / covar(0, 0));
+          //float theta_prob = 1/(sqrt(2*M_PI*covar(1, 1)))*exp(-0.5*pow(theta_pred - theta, 2) / covar(1, 1));
+          //float prob = dist_prob*theta_prob;
 
-          //float prob = (1 / (2*M_PI*sqrt(covar.determinant())))*exp((-0.5*(diff).transpose()*covar.inverse()*(diff)));
+          float prob = (1 / (2*M_PI*sqrt(covar.determinant())))*exp((-0.5*(diff).transpose()*covar.inverse()*(diff)));
 
           // std::cout << "prob one-liner: " << prob << std::endl;
 
