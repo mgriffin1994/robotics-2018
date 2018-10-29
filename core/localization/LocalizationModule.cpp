@@ -163,22 +163,24 @@ void LocalizationModule::processFrame() {
     zk[0] = ball.visionDistance;
     zk[1] = ball.visionBearing;
 
-    //std::cout << std::endl;
 
-    //std::cout << "Measurement:\n" << zk << std::endl;
-    //std::cout << "Ak:\n" << Ak << std::endl;     //Believe this is created and set correctly
+    // std::cout << std::endl;
+
+    // std::cout << "Measurement:\n" << zk << std::endl;
+    // std::cout << "Ak:\n" << Ak << std::endl;     //Believe this is created and set correctly
 
 
     xkBar = Ak*xk;
     Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> PkBar = (Ak*Pk)*Ak.transpose() + Qk;
 
-    //std::cout << "State Bar:\n" << xkBar << std::endl;
-    //std::cout << "Covariance Bar:\n" << PkBar << std::endl;
+
+    // std::cout << "State Bar:\n" << xkBar << std::endl;
+    // std::cout << "Covariance Bar:\n" << PkBar << std::endl;
 
     float headpan = cache_.joint->getJointValue(0);
 
-    //std::cout << "Angles: " << self.orientation << " " << headpan << std::endl;
-    //std::cout << "Robot Position:\n" << self.loc.x << " " << self.loc.y << std::endl;
+    // std::cout << "Angles: " << self.orientation << " " << headpan << std::endl;
+    // std::cout << "Robot Position:\n" << self.loc.x << " " << self.loc.y << std::endl;
 
 
     float distance = sqrt(pow(xkBar[0] - self.loc.x, 2) + pow(xkBar[2] - self.loc.y, 2));
@@ -190,7 +192,8 @@ void LocalizationModule::processFrame() {
     zkBar[0] = distance;
     zkBar[1] = bearing;
 
-    //std::cout << "Predicted Measurement:\n" << zkBar << std::endl;
+
+    // std::cout << "Predicted Measurement:\n" << zkBar << std::endl;
 
 
     Eigen::Matrix<float, 2, STATE_SIZE, Eigen::DontAlign> Hk = Eigen::Matrix<float, 2, STATE_SIZE, Eigen::DontAlign>::Zero();
@@ -199,8 +202,7 @@ void LocalizationModule::processFrame() {
     Hk(0, 2) = (xkBar[2] - self.loc.y) / distance;
     Hk(1, 0) = (self.loc.y - xkBar[2]) / (distance*distance);
 
-    //std::cout << "Hk:\n" << Hk << std::endl;
-
+    // std::cout << "Hk:\n" << Hk << std::endl;
 
 
     //TODO: get R when ball bit farther away? (like how far scorer going to kick from or bit more?)
@@ -215,13 +217,15 @@ void LocalizationModule::processFrame() {
     Rk(1,1) = 0.0000021556;
 
     Eigen::Matrix<float, STATE_SIZE, 2, Eigen::DontAlign> Kk = (PkBar*Hk.transpose())*((Hk*PkBar*Hk.transpose() + Rk).inverse());
-    //std::cout << "Kalman Gain:\n" << Kk << std::endl;
+
+    // std::cout << "Kalman Gain:\n" << Kk << std::endl;
 
     xk = xkBar + Kk*(zk - zkBar);
     Pk = (eye - Kk*Hk)*PkBar;
 
-    //std::cout << "State:\n" << xk << std::endl;
-    //std::cout << "Covariance:\n" << Pk << std::endl;
+
+    // std::cout << "State:\n" << xk << std::endl;
+    // std::cout << "Covariance:\n" << Pk << std::endl;
 
 
     // Update the localization memory objects with localization calculations

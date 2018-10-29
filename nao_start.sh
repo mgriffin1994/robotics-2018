@@ -30,12 +30,12 @@ tmux select-pane -t 4;
 tmux send-keys "nao stop" C-m;
 sleep 2;
 tmux send-keys "naoqi" C-m;
-sleep 10;
+sleep 12;
 
 # Motion window
 tmux select-pane -t 3;
 tmux send-keys "bin/motion" C-m;
-sleep 1;
+sleep 2;
 
 # Vision window
 tmux select-pane -t 2;
