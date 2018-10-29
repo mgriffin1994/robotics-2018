@@ -21,8 +21,9 @@ time_delay = 1.0 / 30.
 center_region = 125
 x_thresh = 50
 
+# this is for the hacky version of keeping the ball in center of view
 vision_center_thresh = 40
-keep_center_gain = 1
+keep_center_gain = 0.007
 image_center_x = 160
 image_center_y = 120
 
@@ -33,12 +34,6 @@ image_center_y = 120
 #   - Use Kalman filter to predict ball location and move, if necessary
 #       - Speed up prediction, blocking is too slow
 #   - Choose block to use (may need more than the three provided)
-
-# TODO:
-#  - could do open loop control (hack) to keep ball in center of view
-#    - keep track of the location of the ball
-#    - if it moves outside some threshold that is considered as the center of view
-#      - move in that direction by a small amount until the ball is in the center again
 
 class Blocker(Node):
 
@@ -81,34 +76,38 @@ class Blocker(Node):
 #         print("robot x, y: ", rob_x, ", ", rob_y)
 #         print("velocity x, y: ", ball_xvel, ", ", ball_yvel)
 
-        print('======')
-        print('ball_x: %d ball_y: %d' % (ball_x, ball_y))
-        print('rob_x:  %d rob_y:  %d' % (rob_x, rob_y))
+#         print('======')
+#         print('ball_x: %d ball_y: %d' % (ball_x, ball_y))
+#         print('rob_x:  %d rob_y:  %d' % (rob_x, rob_y))
 
-#         if abs(ball_x - rob_x) > vision_center_thresh:
-#             direction = ball_x - rob_x
-#             commands.setWalkVelocity(0, 0.1 * direction, 0)
-
+        ### keep the ball in the center of vision
         # vision bounds in pixels (x: 320 and y: 240)
-        if abs(ball_x - image_center_x) > vision_center_thresh:
-            diff = ball_x - image_center_x
-            print('diff: %d' % (diff))
-            commands.setWalkVelocity(0, keep_center_gain * diff, 0)
+#         if abs(ball_x - image_center_x) > vision_center_thresh:
+#             diff = image_center_x - ball_x
+#             print('diff: %d' % (diff))
+#             print('diff * keep_center_gain: %f' % (diff * keep_center_gain))
+#             if (diff < 0):
+#                 commands.setWalkVelocity(0.1, keep_center_gain * diff, 0)
+#             else:
+#                 commands.setWalkVelocity(0.1, keep_center_gain * diff, 0.05)
+#         else:
+#             commands.setWalkVelocity(0, 0, 0)
 
-#         if ball.seen and any(x <= rob_x - x_thresh for x in predicted_x):
-#             possible_goal_frames = [i for i, x in enumerate(predicted_x) if x <= rob_x - x_thresh]
-#             if any(abs(predicted_y[i]-rob_y) < y_thresh for i in possible_goal_frames):
-#                 y_pred = predicted_y[possible_goal_frames[0]]
-#                 print('num_frames', possible_goal_frames[0])
-#                 if abs(y_pred - rob_y) <= center_region:
-#                     choice = "center"
-#                 elif y_pred > 0:
-#                     choice = "left"
-#                 elif y_pred < 0:
-#                     choice = "right"
-#                 print(choice)
-#                 print()
-#                 self.postSignal(choice)
+        ### execute a block if the ball is predicted to have been shot into the goal
+        if ball.seen and any(x <= rob_x - x_thresh for x in predicted_x):
+            possible_goal_frames = [i for i, x in enumerate(predicted_x) if x <= rob_x - x_thresh]
+            if any(abs(predicted_y[i]-rob_y) < y_thresh for i in possible_goal_frames):
+                y_pred = predicted_y[possible_goal_frames[0]]
+                print('num_frames', possible_goal_frames[0])
+                if abs(y_pred - rob_y) <= center_region:
+                    choice = "center"
+                elif y_pred > 0:
+                    choice = "left"
+                elif y_pred < 0:
+                    choice = "right"
+                print(choice)
+                print()
+                self.postSignal(choice)
 
 
 class Playing(LoopingStateMachine):

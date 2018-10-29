@@ -151,6 +151,8 @@ class ApproachBall(Node):
                 if not memory.kick_request.kick_running_ and self.getFrames() - self.start_kick_frame > 10:
                     print('Done kicking')
                     self.start_kick_frame = -1
+#                     self.start_kick_frame = 5
+#                     return
 
             ### Close to the ball and aligned with goal and kick not started
             elif (abs(x_error_avg) < x_error_thresh and abs(y_error_avg) < y_error_thresh and abs(theta_error_avg) < theta_error_thresh):

@@ -64,7 +64,7 @@ DECLARE_INTERNAL_SCHEMA(struct LocalizationBlock : public MemoryBlock {
       memcpy(
         __target_object__.particles.data(), 
         __target_object__.particles_data.data(), 
-        __target_object__.particles_data.size() * sizeof(float)
+        __target_object__.particles.size() * sizeof(float)
       );
   });
 
