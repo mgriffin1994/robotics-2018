@@ -33,14 +33,14 @@ max_num_frames = 30
 max_int_steps = 10 # if want to use all steps, then set to float("inf")
 
 x_error_thresh = 120 # w/in 12 cm of ball_distance_close behind ball
-y_error_thresh = 0.1
+# y_error_thresh = 0.1
+y_error_thresh = 0.12
 theta_error_thresh = 0.075
 
+### original thresholds for lab 4 kick checkout
 # x_error_thresh = 120 # w/in 12 cm of ball_distance_close behind ball
 # y_error_thresh = 0.1
 # theta_error_thresh = 0.075
-
-vel_thresh = 0.1
 
 top_cam_width = 320
 bot_cam_width = 320
@@ -101,19 +101,19 @@ class ApproachBall(Node):
                 ball_center = ball.imageCenterX / top_cam_width if ball.seen else self.prev_ball_centerx
             else:
                 ball_center = ball.imageCenterX / bot_cam_width if ball.seen else self.prev_ball_centerx
-            goal_center = goal.imageCenterX / top_cam_width if goal.seen else self.prev_goal_centerx # TODO: fix
+            goal_center = goal.imageCenterX / top_cam_width if goal.seen else self.prev_goal_centerx
 
             ### Compute errors
             # It is plus one for [-moving_avg_samples+1:] because we use the current measurement along with the last N-1 measurements for computing the average ... silly but whatever
             x_error = (ball.visionDistance - ball_distance_close) if ball.seen else (self.prev_ball_distance - ball_distance_close)
             x_error_avg = (x_error + sum(self.x_errors[-moving_avg_samples+1:])) / moving_avg_samples
-            y_error = (goal_center - ball_center) # TODO: fix
+            y_error = (goal_center - ball_center)
             y_error_avg = (y_error + sum(self.y_errors[-moving_avg_samples+1:])) / moving_avg_samples
             theta_error = (ball_right_foot - ball_center) if ball.seen else (ball_right_foot - self.prev_ball_centerx)
             theta_error_avg = (theta_error + sum(self.theta_errors[-moving_avg_samples+1:])) / moving_avg_samples
 
             ### Compute average distance to the goal
-            goal_distance_avg = (goal.visionDistance + sum(self.goal_distances[-moving_avg_samples+1:])) / moving_avg_samples # TODO: fix
+            goal_distance_avg = (goal.visionDistance + sum(self.goal_distances[-moving_avg_samples+1:])) / moving_avg_samples
 
             print('================')
 #             print("x average error: ", x_error_avg)
@@ -125,7 +125,7 @@ class ApproachBall(Node):
             self.x_errors.append(x_error)
             self.y_errors.append(y_error)
             self.theta_errors.append(theta_error)
-            self.goal_distances.append(goal.visionDistance) # TODO: fix
+            self.goal_distances.append(goal.visionDistance)
             if len(self.x_errors) > max_int_steps:
                 self.x_errors.pop(0)
             if len(self.y_errors) > max_int_steps:
@@ -202,8 +202,8 @@ class ApproachBall(Node):
             # Start scanning by turning in place
             if not self.ball_search_done:
                 print('Scan for ball')
-                if goal.seen: # TODO: fix
-                    self.prev_goal_centerx = goal.imageCenterX / top_cam_width # TODO: fix
+                if goal.seen:
+                    self.prev_goal_centerx = goal.imageCenterX / top_cam_width
                 if ball.seen:
                     self.prev_ball_centerx = ball.imageCenterX / bot_cam_width if not ball.fromTopCamera else ball.imageCenterX / top_cam_width
                     self.prev_ball_distance = ball.visionDistance
