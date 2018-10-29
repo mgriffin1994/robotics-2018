@@ -61,6 +61,9 @@ DECLARE_INTERNAL_SCHEMA(struct LocalizationBlock : public MemoryBlock {
         __target_object__.covariance_data.data() + __target_object__.covariance.size(), 
         __target_object__.covariance.data()
       );
+
+       __target_object__.particles.resize(PARTICLE_NUM); //<- Add this line
+
       memcpy(
         __target_object__.particles.data(), 
         __target_object__.particles_data.data(), 
