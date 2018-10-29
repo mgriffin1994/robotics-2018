@@ -93,7 +93,10 @@ void ButtonModule::processCenterPresses() {
   if (center_.presses == 1) {
       game_state_->setState(INITIAL);
   }
-  if ((center_.presses == 3) || (center_.presses == 4)) {
+  if (center_.presses == 3) {
+      game_state_->setState(READY);
+  }
+  if (center_.presses == 4) {
     // always transition to finished
     game_state_->setState(SET);
     speech_->say("set");

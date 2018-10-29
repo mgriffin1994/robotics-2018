@@ -11,12 +11,13 @@ import pose
 import cfgstiff
 from state_machine import Node, S, T, LoopingStateMachine
 from memory import joint_commands, localization_mem, robot_state
+from task import Task
 import UTdebug
 import math
 import numpy as np
 
-predict_secs = 20
-y_thresh = 400
+predict_secs = 25
+y_thresh = 500
 time_delay = 1.0 / 30.
 center_region = 125
 x_thresh = 50
@@ -30,6 +31,7 @@ class Blocker(Node):
     def run(self):
 
         commands.setStiffness()
+        commands.setHeadTilt(-15)
 
         ball = mem_objects.world_objects[core.WO_BALL]
         robot = mem_objects.world_objects[robot_state.WO_SELF]
@@ -80,7 +82,7 @@ class Blocker(Node):
 
         if ball.seen and any(x <= rob_x - x_thresh for x in predicted_x):
             possible_goal_frames = [i for i, x in enumerate(predicted_x) if x <= rob_x - x_thresh]
-            if any(abs(predicted_y[i]-rob_y) < y_thresh for i in possible_goal_frames):
+            if any(abs(predicted_y[i] - rob_y) < y_thresh for i in possible_goal_frames):
                 y_pred = predicted_y[possible_goal_frames[0]]
                 print('num_frames', possible_goal_frames[0])
                 choice = ""
@@ -97,7 +99,18 @@ class Blocker(Node):
                     self.postSignal(choice)
 #'''
 
+class Ready(Task):
+    def run(self):
+       commands.stand()
+       if self.getTime() > 3.0:
+           commands.setHeadPanTilt(-math.pi / 4, -15, 0.5)
+           if self.getTime() > 8.0:
+               commands.setHeadPan(math.pi / 4, 0.5)
+               if self.getTime() > 13.0:
+                   commands.setHeadPan(0, 0.5)
 
+
+# TODO: How to switch between kicking and goalie?
 class Playing(LoopingStateMachine):
     def setup(self):
         blocker = Blocker()

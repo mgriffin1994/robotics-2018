@@ -32,17 +32,37 @@ void ParticleFilter::init(Point2D loc, float orientation) {
   // Prior distribution
   for(auto& p : particles()) {
       //±2500,±1250
-      p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
-      p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
-      p.t = Random::inst().sampleU() * 2*M_PI - M_PI;  //0., M_PI / 4);
-      p.w = 1.0/num_particles;
+
+      // Three probability masses
+      float rand_prob = Random::inst().sampleU();
+
+      // Scorer right
+      if (rand_prob < 0.33) {
+          //    p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
+          //    p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
+          //    p.t = Random::inst().sampleU() * 2*M_PI - M_PI;  //0., M_PI / 4);
+          p.x = Random::inst().sampleN() * 50 + 400;
+          p.y = Random::inst().sampleN() * 50 - 850;
+          p.t = Random::inst().sampleN() * M_PI/8 + M_PI/2;
+          p.w = 1.0/num_particles;
+      // Scorer left
+      } else if (rand_prob < 0.66) {
+          p.x = Random::inst().sampleN() * 50 + 400;
+          p.y = Random::inst().sampleN() * 50 + 850;
+          p.t = Random::inst().sampleN() * M_PI/8 - M_PI/2;
+          p.w = 1.0/num_particles;
+      // Keeper
+      } else {
+          p.x = Random::inst().sampleN() * 50 - 1500;
+          p.y = Random::inst().sampleN() * 50;
+          p.t = Random::inst().sampleN() * M_PI/8;
+          p.w = 1.0/num_particles;
+      }
 
       // p.x = 0; //static_cast<int>(frame * 5), 250);
       // p.y = 0; // 0., 250);
       // p.t = 0;  //0., M_PI / 4);
       // p.w = 1.0/num_particles;
-
-
   }
 #ifdef MEAT
   kidnapped = false;
@@ -145,10 +165,37 @@ void ParticleFilter::processFrame() {
       cout << "Out of bounds" << std::endl;
       for(auto& p : particles()) {
           //±2500,±1250
-          p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
-          p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
-          p.t = Random::inst().sampleU() * 2*M_PI - M_PI;  //0., M_PI / 4);
-          p.w = 1.0/num_particles;
+          // p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
+          // p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
+          // p.t = Random::inst().sampleU() * 2*M_PI - M_PI;  //0., M_PI / 4);
+          // p.w = 1.0/num_particles;
+
+          // Three probability masses
+          float rand_prob = Random::inst().sampleU();
+
+          // Scorer right
+          if (rand_prob < 0.33) {
+              //    p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
+              //    p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
+              //    p.t = Random::inst().sampleU() * 2*M_PI - M_PI;  //0., M_PI / 4);
+              p.x = Random::inst().sampleN() * 50 + 400;
+              p.y = Random::inst().sampleN() * 50 - 850;
+              p.t = Random::inst().sampleN() * M_PI/8 + M_PI/2;
+              p.w = 1.0/num_particles;
+              // Scorer left
+          } else if (rand_prob < 0.66) {
+              p.x = Random::inst().sampleN() * 50 + 400;
+              p.y = Random::inst().sampleN() * 50 + 850;
+              p.t = Random::inst().sampleN() * M_PI/8 - M_PI/2;
+              p.w = 1.0/num_particles;
+              // Keeper
+          } else {
+              p.x = Random::inst().sampleN() * 50 - 1500;
+              p.y = Random::inst().sampleN() * 50;
+              p.t = Random::inst().sampleN() * M_PI/8;
+              p.w = 1.0/num_particles;
+          }
+
 
           //TODO: change this to AMCL and sample points based about measurements
       }
@@ -159,8 +206,8 @@ void ParticleFilter::processFrame() {
   float lambda_y = max3(disp.translation.x*1.0, disp.translation.y*2.0, 10);
   float lambda_t = max3(abs(disp.translation.x+disp.translation.y)*0.0, disp.rotation*2.7, 0.072);
 
-  std::cout << std::endl;
-  std::cout << "Lambda: " << lambda_x << " " << lambda_y << " " << lambda_t << std::endl;
+//  std::cout << std::endl;
+//  std::cout << "Lambda: " << lambda_x << " " << lambda_y << " " << lambda_t << std::endl;
 
 
   // Generate new samples from resampled particles
