@@ -6,6 +6,8 @@
 #include <Eigen/Eigen>
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include <memory/GameStateBlock.h>
+
 //#include <vision/BeaconDetector.h>
 
 using namespace Eigen;
@@ -36,27 +38,24 @@ void ParticleFilter::init(Point2D loc, float orientation) {
       // Three probability masses
       float rand_prob = Random::inst().sampleU();
 
-      // Scorer right
-      if (rand_prob < 0.33) {
-          //    p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
-          //    p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
-          //    p.t = Random::inst().sampleU() * 2*M_PI - M_PI;  //0., M_PI / 4);
-          p.x = Random::inst().sampleN() * 50 + 400;
-          p.y = Random::inst().sampleN() * 50 - 850;
-          p.t = Random::inst().sampleN() * M_PI/8 + M_PI/2;
-          p.w = 1.0/num_particles;
-      // Scorer left
-      } else if (rand_prob < 0.66) {
-          p.x = Random::inst().sampleN() * 50 + 400;
-          p.y = Random::inst().sampleN() * 50 + 850;
-          p.t = Random::inst().sampleN() * M_PI/8 - M_PI/2;
-          p.w = 1.0/num_particles;
-      // Keeper
-      } else {
+      if(!cache_.game_state->isPenaltyKick){
           p.x = Random::inst().sampleN() * 50 - 1500;
           p.y = Random::inst().sampleN() * 50;
           p.t = Random::inst().sampleN() * M_PI/8;
           p.w = 1.0/num_particles;
+      } else {
+
+        if (rand_prob < 0.5) {
+            p.x = Random::inst().sampleN() * 50 + 400;
+            p.y = Random::inst().sampleN() * 50 - 850;
+            p.t = Random::inst().sampleN() * M_PI/8 + M_PI/2;
+            p.w = 1.0/num_particles;
+        } else {
+            p.x = Random::inst().sampleN() * 50 + 400;
+            p.y = Random::inst().sampleN() * 50 + 850;
+            p.t = Random::inst().sampleN() * M_PI/8 - M_PI/2;
+            p.w = 1.0/num_particles;
+        } 
       }
 
       // p.x = 0; //static_cast<int>(frame * 5), 250);
@@ -160,50 +159,52 @@ void ParticleFilter::processFrame() {
   float avg_px = 0.0;
   float avg_py = 0.0;
   float avg_pt = 0.0;
+  
+  int threshold = 150;
 
-  if (abs(mean_.translation.x) > 2500 || abs(mean_.translation.y) > 1250) {
+
+  if (cache_.game_state->isPenaltyKick && (mean_.translation.x < -1500 - threshold || mean_.translation.x > 500 + 2*threshold || abs(mean_.translation.y) > 1000 + threshold)){
       cout << "Out of bounds" << std::endl;
       for(auto& p : particles()) {
           //±2500,±1250
-          // p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
-          // p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
-          // p.t = Random::inst().sampleU() * 2*M_PI - M_PI;  //0., M_PI / 4);
-          // p.w = 1.0/num_particles;
 
-          // Three probability masses
           float rand_prob = Random::inst().sampleU();
 
-          // Scorer right
-          if (rand_prob < 0.33) {
-              //    p.x = Random::inst().sampleU() * 5000 - 2500; //static_cast<int>(frame * 5), 250);
-              //    p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
-              //    p.t = Random::inst().sampleU() * 2*M_PI - M_PI;  //0., M_PI / 4);
+          if (rand_prob < 0.5) {
               p.x = Random::inst().sampleN() * 50 + 400;
               p.y = Random::inst().sampleN() * 50 - 850;
               p.t = Random::inst().sampleN() * M_PI/8 + M_PI/2;
               p.w = 1.0/num_particles;
-              // Scorer left
-          } else if (rand_prob < 0.66) {
+          } else {
               p.x = Random::inst().sampleN() * 50 + 400;
               p.y = Random::inst().sampleN() * 50 + 850;
               p.t = Random::inst().sampleN() * M_PI/8 - M_PI/2;
               p.w = 1.0/num_particles;
-              // Keeper
-          } else {
-              p.x = Random::inst().sampleN() * 50 - 1500;
-              p.y = Random::inst().sampleN() * 50;
-              p.t = Random::inst().sampleN() * M_PI/8;
-              p.w = 1.0/num_particles;
-          }
-
+          } 
 
           //TODO: change this to AMCL and sample points based about measurements
       }
       return;
   }
+  //TODO see if rotation also bad
+  if(!cache_.game_state->isPenaltyKick && (abs(mean_.translation.y) > 700 + threshold || mean_.translation.x < -1500 - threshold || mean_.translation.x > -850 + threshold)){
+      cout << "Out of bounds" << std::endl;
+      //cout << "Bot: " << mean_.translation.x << " " << mean_.translation.y;
 
-  float lambda_x = max3(disp.translation.x*2.0, disp.translation.y*1.0, 10);
-  float lambda_y = max3(disp.translation.x*1.0, disp.translation.y*2.0, 10);
+      for(auto& p : particles()) {
+
+        p.x = Random::inst().sampleN() * 50 - 1500;
+        p.y = Random::inst().sampleN() * 50;
+        p.t = Random::inst().sampleN() * M_PI/8;
+        p.w = 1.0/num_particles;
+        
+      }
+      return;
+  }
+
+
+  float lambda_x = max3(disp.translation.x*2.0, disp.translation.y*1.0, 5);
+  float lambda_y = max3(disp.translation.x*1.0, disp.translation.y*2.0, 5);
   float lambda_t = max3(abs(disp.translation.x+disp.translation.y)*0.0, disp.rotation*2.7, 0.072);
 
 //  std::cout << std::endl;

@@ -44,6 +44,7 @@ LocalizationSimulation::~LocalizationSimulation() {
 
 void LocalizationSimulation::init(vector<LocSimAgent::Type> types) {
   path_ = SimulationPath::generate(10, seed_);
+
   gtcache_ = MemoryCache::create(team_, player_);
   og_.setInfoBlocks(gtcache_.frame_info, gtcache_.joint);
   og_.setPlayer(player_, team_);
@@ -146,11 +147,20 @@ void LocalizationSimulation::placeObjects(LocSimAgent& agent) {
 
   getObject(gtSelf, player_, gtcache_);
   getObject(obsSelf, player_, cache);
-  gtSelf.loc = obsSelf.loc = path_.lastPoint();
+  //gtSelf.loc = obsSelf.loc = path_.lastPoint();
+
+  auto rand = Random(seed_);
+
+  float x = rand.sampleU();
+  if(x > 0.5) gtSelf.loc = obsSelf.loc = Point2D(400,-850);
+  else gtSelf.loc = obsSelf.loc = Point2D(400,850);
+
   auto& pose = RobotPositions::startingSidelinePoses[player_];
   pose.translation.x = gtSelf.loc.x;
   pose.translation.y = gtSelf.loc.y;
-  pose.rotation = 0;
+  if (gtSelf.loc.y > 0) pose.rotation = -M_PI/2;
+  else pose.rotation = M_PI/2;
+  //pose.rotation = 0;
 }
 
 void LocalizationSimulation::startCore(LocSimAgent& agent) {
@@ -162,6 +172,8 @@ void LocalizationSimulation::startCore(LocSimAgent& agent) {
   cache.fill(core->memory_);
   cache.world_object->init();
   cache.game_state->setState(PLAYING);
+  cache.game_state->isPenaltyKick = true;
+
   core->interpreter_->start();
   placeObjects(agent);
   core->localization_->reInit();

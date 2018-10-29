@@ -131,10 +131,10 @@ void LocalizationModule::processFrame() {
 
     Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> eye = Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign>::Identity();
     Eigen::Matrix<float, STATE_SIZE, STATE_SIZE, Eigen::DontAlign> Qk = eye;
-    Qk(0,0) = 5;
-    Qk(1,1) = 50;
-    Qk(2,2) = 5;
-    Qk(3,3) = 50;    //TODO: change this to have noiser position and less noisy velocity? (or all same but different noiseQ?)
+    Qk(0,0) = 2;
+    Qk(1,1) = 60;
+    Qk(2,2) = 2;
+    Qk(3,3) = 60;    //TODO: change this to have noiser position and less noisy velocity? (or all same but different noiseQ?)
 
 
 
