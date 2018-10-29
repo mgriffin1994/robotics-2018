@@ -59,7 +59,7 @@ function nao_restart() {
     tmux send-keys C-c;
 
     # Naoqi window
-    sleep 0.1;
+    sleep 0.2;
     tmux select-pane -t 4;
     tmux send-keys "naoqi" C-m;
     sleep 10;

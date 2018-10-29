@@ -46,13 +46,11 @@ top_cam_width = 320
 bot_cam_width = 320
 
 # TODO: change these so it doesn't dribble the ball too well into the penalty box
-kick_distance = 1500
-dribble_speed = 0.70
+kick_distance = 1400
+dribble_speed = 0.60
 
 ball_distance_close = 50
 ball_right_foot = 0.67
-
-
 
 class ApproachBall(Node):
 
@@ -71,8 +69,12 @@ class ApproachBall(Node):
         self.start_dribbling = False
         self.avg_time_step = 0.01
         self.start_kick_frame = -1 # this variable is multipurpose (-1 means the kick has not been started, everything else means the frame number at which the kick started)
+        self.kick_executed = False
 
     def run(self):
+
+        if self.kick_executed == True:
+            return
 
         ### Grab the ball and goal world objects
         ball = mem_objects.world_objects[core.WO_BALL]
@@ -81,8 +83,8 @@ class ApproachBall(Node):
         ### Tilt the head so we can see more
         commands.setHeadTilt(-18)
 
-        if (goal.seen):
-            print("goal seen")
+#         if (goal.seen):
+#             print("goal seen")
 
         ### If we've seen the ball execute the PID loop
         if self.num_frames_not_seen_ball < max_num_frames:
@@ -113,15 +115,11 @@ class ApproachBall(Node):
             ### Compute average distance to the goal
             goal_distance_avg = (goal.visionDistance + sum(self.goal_distances[-moving_avg_samples+1:])) / moving_avg_samples # TODO: fix
 
-#             print("ball_center ", ball_center, " goal_center ", goal_center)
-#             print("x error", x_error, "   |   ", "x average error", x_error_avg)
-#             print("y error", y_error, "   |   ", "y average error", y_error_avg)
-#             print("theta error", theta_error, "   |   ", "theta average error", theta_error_avg)
-
             print('================')
-            print("x average error: ", x_error_avg)
-            print("y average error: ", y_error_avg)
-            print("theta average error: ", theta_error_avg)
+#             print("x average error: ", x_error_avg)
+#             print("y average error: ", y_error_avg)
+#             print("theta average error: ", theta_error_avg)
+            print('goal_distance_avg: %f' % (goal_distance_avg))
 
             ### Add to previous errors
             self.x_errors.append(x_error)
@@ -171,6 +169,7 @@ class ApproachBall(Node):
                 else:
                     print('Kicking')
                     print('----------> distance to goal: %d' % (goal_distance_avg))
+                    self.kick_executed = True
                     commands.kick()
                 self.start_kick_frame = self.getFrames() if self.start_kick_frame == -1 else self.start_kick_frame
 
@@ -178,11 +177,11 @@ class ApproachBall(Node):
             else:
                 print('Walk toward ball')
                 if (abs(x_error_avg) > x_error_thresh):
-                    print('x_error_avg too high')
+                    print('x_error_avg too high: %d' % (x_error_avg))
                 if (abs(y_error_avg) > y_error_thresh):
-                    print('y_error_avg too high')
+                    print('y_error_avg too high: %d' % (y_error_avg))
                 if (abs(theta_error_avg) > theta_error_thresh):
-                    print('theta_error_avg too high')
+                    print('theta_error_avg too high: %d' % (theta_error_avg))
                 commands.setWalkVelocity(x_vel, y_vel, theta_vel)
 
             # set previous time
