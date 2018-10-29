@@ -47,9 +47,10 @@ bot_cam_width = 320
 
 # TODO: change these so it doesn't dribble the ball too well into the penalty box
 kick_distance = 1400
-dribble_speed = 0.60
+slow_dribble_speed = 0.30
 
-ball_distance_close = 50
+# ball_distance_close = 50
+ball_distance_close = 20
 ball_right_foot = 0.67
 
 class ApproachBall(Node):
@@ -66,7 +67,6 @@ class ApproachBall(Node):
         self.prev_goal_centerx = 0
         self.prev_ball_centerx = 0
         self.ball_search_done = False
-        self.start_dribbling = False
         self.avg_time_step = 0.01
         self.start_kick_frame = -1 # this variable is multipurpose (-1 means the kick has not been started, everything else means the frame number at which the kick started)
         self.kick_executed = False
@@ -142,12 +142,18 @@ class ApproachBall(Node):
 
             ### Get the time
             time = self.getTime()
+            print('time: %f' % (time))
+
+            ### Last resort: just kick the ball if time is running out TODO
+            if time > 70:
+                commands.kick()
+                kick_executed = True
 
             ### Compute velocities
             prev_x_avg = sum(self.x_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
             x_vel = x_kp*x_error_avg + (x_kd*(x_error_avg - prev_x_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step)))) + x_ki*(max(x_error + sum(self.x_errors), max_int))
-            if ball.visionDistance > 1500 or (self.prev_ball_distance > 1500 and not ball.seen):
-                x_vel = 1.0
+            if x_vel > 0.35:
+                x_vel = 0.35
             prev_y_avg = sum(self.y_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
             y_vel = y_kp*y_error_avg + (y_kd*(y_error_avg - prev_y_avg) / (2*(max(time - self.prev_time + 1e-5, self.avg_time_step)))) + y_ki*(max(y_error + sum(self.y_errors), max_int))
             prev_theta_avg = sum(self.theta_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
@@ -164,8 +170,7 @@ class ApproachBall(Node):
             elif (abs(x_error_avg) < x_error_thresh and abs(y_error_avg) < y_error_thresh and abs(theta_error_avg) < theta_error_thresh):
                 if goal_distance_avg > kick_distance:
                     print('Dribbling')
-                    self.start_dribbling = True
-                    commands.setWalkVelocity(dribble_speed, 0, 0)
+                    commands.setWalkVelocity(slow_dribble_speed, 0, 0)
                 else:
                     print('Kicking')
                     print('----------> distance to goal: %d' % (goal_distance_avg))
@@ -177,12 +182,17 @@ class ApproachBall(Node):
             else:
                 print('Walk toward ball')
                 if (abs(x_error_avg) > x_error_thresh):
-                    print('x_error_avg too high: %d' % (x_error_avg))
+                    print('x_error_avg too high: %f' % (x_error_avg))
                 if (abs(y_error_avg) > y_error_thresh):
-                    print('y_error_avg too high: %d' % (y_error_avg))
+                    print('y_error_avg too high: %f' % (y_error_avg))
                 if (abs(theta_error_avg) > theta_error_thresh):
-                    print('theta_error_avg too high: %d' % (theta_error_avg))
-                commands.setWalkVelocity(x_vel, y_vel, theta_vel)
+                    print('theta_error_avg too high: %f' % (theta_error_avg))
+
+                if goal_distance_avg < kick_distance and x_vel > slow_dribble_speed:
+                    print('walk toward ball and w/i kick distance')
+                    commands.setWalkVelocity(slow_dribble_speed, y_vel, theta_vel)
+                else:
+                    commands.setWalkVelocity(x_vel, y_vel, theta_vel)
 
             # set previous time
             self.prev_time = time
