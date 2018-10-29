@@ -29,6 +29,13 @@ void ParticleFilter::init(Point2D loc, float orientation) {
       p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
       p.t = Random::inst().sampleU() * 2*M_PI - M_PI;  //0., M_PI / 4);
       p.w = 1.0/num_particles;
+
+      // p.x = 0; //static_cast<int>(frame * 5), 250);
+      // p.y = 0; // 0., 250);
+      // p.t = 0;  //0., M_PI / 4);
+      // p.w = 1.0/num_particles;
+
+
   }
 #ifdef MEAT
   kidnapped = false;
@@ -135,6 +142,8 @@ void ParticleFilter::processFrame() {
           p.y = Random::inst().sampleU() * 2500 - 1250; // 0., 250);
           p.t = Random::inst().sampleU() * 2*M_PI - M_PI;  //0., M_PI / 4);
           p.w = 1.0/num_particles;
+
+          //TODO: change this to AMCL and sample points based about measurements
       }
       return;
   }
@@ -144,26 +153,29 @@ void ParticleFilter::processFrame() {
       Particle& p = resampled[i];
 
       // NOTE: new_pT is absolute angle for the particle, theta is relative angle from the robot, theta_pred is relative angle from the particle
-      float new_pX = Random::inst().sampleN()*15 + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
-      float new_pY = Random::inst().sampleN()*15 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
+      //This is fine, the sim just has odometry noise
+      float new_pX = Random::inst().sampleN()*5 + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
+      float new_pY = Random::inst().sampleN()*5 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
       float new_pT = Random::inst().sampleN()*(M_PI/32) + p.t + disp.rotation;
+
+
 
       // Tighten it up! if completely stationary
       // TODO: make sure these actually become 0 when turn in place, if not zero the add back angle stuff above (disp.translation.x*cos(p.t) etc)
-      /*if (disp.translation.x != 0 || disp.translation.y != 0) {
-           new_pX = Random::inst().sampleN()*5 + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
-           new_pY = Random::inst().sampleN()*5 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
+      if (disp.translation.x == 0 && disp.translation.y == 0) {
+           new_pX = Random::inst().sampleN() + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
+           new_pY = Random::inst().sampleN() + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
            //new_pX = p.x;
            //new_pY = p.y;
        } /*else if (disp.translation.x == 0 || disp.translation.y == 0) {
            new_pX = Random::inst().sampleN()*20 + p.x;
            new_pY = Random::inst().sampleN()*20 + p.y;
       } */
-      /*
-      if (disp.rotation != 0) {
-          new_pT = Random::inst().sampleN()*(M_PI/32) + p.t + disp.rotation;
+      
+      if (disp.rotation == 0) {
+          new_pT = Random::inst().sampleN()*(M_PI/128) + p.t + disp.rotation;
           //new_pT = p.t;
-      }*/
+      }
 
       new_pT = std::fmod(new_pT + M_PI, 2 * M_PI);
       if (new_pT < 0)
@@ -184,7 +196,6 @@ void ParticleFilter::processFrame() {
           float theta = object.visionBearing;
           float theta_pred = atan2(beaconY-new_pY, beaconX-new_pX) - new_pT;
 
-          // TODO: Check for case when both are close to pi, -pi
           theta = std::fmod(theta + M_PI, 2 * M_PI);
           if (theta < 0)
               theta += 2 * M_PI;
@@ -194,6 +205,9 @@ void ParticleFilter::processFrame() {
           if (theta_pred < 0)
               theta_pred += 2 * M_PI;
           theta_pred -= M_PI;
+
+
+
 
           Eigen::Vector2f z;
           z << d, theta;
@@ -209,10 +223,12 @@ void ParticleFilter::processFrame() {
           // diff[1] = cos(theta - theta_pred);
           diff[1] = theta - theta_pred;
 
-          diff[1] = std::fmod(diff[1] + M_PI, 2 * M_PI);
-          if (diff[1] < 0)
-              diff[1] += 2 * M_PI;
-          diff[1] -= M_PI;
+          // diff[1] = std::fmod(diff[1] + M_PI, 2 * M_PI);
+          // if (diff[1] < 0)
+          //     diff[1] += 2 * M_PI;
+          // diff[1] -= M_PI;
+
+
 
           //covar << 9.53023146e+03, -2.99987068e-02, -2.99987068e-02, 3.16690503e-06;
 
@@ -227,8 +243,9 @@ void ParticleFilter::processFrame() {
 
           float dist_prob = 1/(sqrt(2*M_PI*covar(0, 0)))*exp(-0.5*pow(d_pred - d, 2) / covar(0, 0));
           float theta_prob = 1/(sqrt(2*M_PI*covar(1, 1)))*exp(-0.5*pow(theta_pred - theta, 2) / covar(1, 1));
+          float prob = dist_prob*theta_prob;
 
-          float prob = (1 / (2*M_PI*sqrt(covar.determinant())))*exp((-0.5*(diff).transpose()*covar.inverse()*(diff)));
+          //float prob = (1 / (2*M_PI*sqrt(covar.determinant())))*exp((-0.5*(diff).transpose()*covar.inverse()*(diff)));
 
           // std::cout << "prob one-liner: " << prob << std::endl;
 
@@ -271,14 +288,13 @@ void ParticleFilter::processFrame() {
 
 #ifdef MEAT
   // TODO: Check if kidnapped works in meatspace
-  BodyModelBlock* body_model = cache_.body_model;
 
-  if (!body_model->feet_on_ground_) {
+  if (!cache_.body_model->feet_on_ground_) {
       kidnapped = true;
   }
 
-  if (body_model->feet_on_ground_ && kidnapped) {
-      // Prior distribution
+  if (cache_.body_model->feet_on_ground_ && kidnapped) {
+      // cache_.body_model distribution
       std::cout << "Feet back on the ground, reseeding" << std::endl;
       for(auto& p : new_particles) {
           //±2500,±1250

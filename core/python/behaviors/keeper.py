@@ -35,18 +35,22 @@ class Blocker(Node):
         robot = mem_objects.world_objects[robot_state.WO_SELF]
 
 #         beacon = mem_objects.world_objects[core.WO_BEACON_BLUE_YELLOW]
-#         if beacon.seen:
-#            z = np.array([beacon.visionDistance, beacon.visionBearing])
-#            self.data.append(z)
-#            mat = np.array(self.data)
-#            print(mat.shape)
-#            if len(self.data) > 2:
-#                print(np.cov(mat.T))
-#            print()
+        # if ball.seen:
+        #    z = np.array([ball.visionDistance, ball.visionBearing])
+        #    self.data.append(z)
+        #    mat = np.array(self.data)
+        #    print(mat.shape)
+        #    if len(self.data) > 2:
+        #        print(np.cov(mat.T))
+        #    print()
 
-
+#'''
         rob_x = robot.loc.x
         rob_y = robot.loc.y
+        #rob_x = -1250
+        #rob_y = 0
+
+        rob_t = robot.orientation
         ball_pos = localization_mem.getBallPosition()
         x_pos, y_pos = ball_pos.x, ball_pos.y
         ball_vel = localization_mem.getBallVel()
@@ -58,11 +62,13 @@ class Blocker(Node):
 
         x_vel, y_vel = ball_vel.x, ball_vel.y
 
-        #if ball.seen:
-        #    angle = np.arctan((y_pos - rob_y)/(x_pos - rob_x + 1e-5))
-        #    commands.setHeadPan(angle, 0.1)
-        #else:
-        #    commands.setHeadPan(0, 0.1)
+        if ball.seen:
+            #angle = np.arctan2((y_pos - rob_y), (x_pos - rob_x)) - rob_t
+            commands.setHeadPan(ball.visionBearing, 0.1)
+        else:
+            commands.setHeadPan(0, 0.1)
+
+        #friction 0.966
 
         predicted_x = [x_pos + x_vel * time_delay * n for n in np.arange(0.0, predict_secs, 0.1)]
         predicted_y = [y_pos + y_vel * time_delay * n for n in np.arange(0.0, predict_secs, 0.1)]
@@ -77,16 +83,19 @@ class Blocker(Node):
             if any(abs(predicted_y[i]-rob_y) < y_thresh for i in possible_goal_frames):
                 y_pred = predicted_y[possible_goal_frames[0]]
                 print('num_frames', possible_goal_frames[0])
+                choice = ""
                 if abs(y_pred - rob_y) <= center_region:
                     choice = "center"
-                elif y_pred > 0:
+                elif y_pred >= 0:
                     choice = "left"
                 elif y_pred < 0:
                     choice = "right"
 
-                print(choice)
-                print()
-                self.postSignal(choice)
+                #print(choice)
+                #print()
+                if choice:
+                    self.postSignal(choice)
+#'''
 
 
 class Playing(LoopingStateMachine):

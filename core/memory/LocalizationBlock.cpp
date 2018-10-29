@@ -11,11 +11,11 @@ LocalizationBlock::LocalizationBlock() {
 }
 
 Point2D LocalizationBlock::getBallPosition() {
-  return Point2D(state[0], state[1]);
+  return Point2D(state[0], state[2]);
 }
 
 Point2D LocalizationBlock::getBallVel() {
-  return Point2D(state[2], state[3]);
+  return Point2D(state[1], state[3]);
 }
 
 /*float LocalizationBlock::getFriction() {

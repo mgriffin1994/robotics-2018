@@ -5,7 +5,6 @@
 #include <memory/LocalizationBlock.h>
 #include <localization/Logging.h>
 #include <memory/WorldObjectBlock.h>
-#include <memory/BodyModelBlock.h>
 
 //#define MEAT
 
