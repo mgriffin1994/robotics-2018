@@ -114,6 +114,10 @@ class ApproachBall(Node):
 
             ### Compute average distance to the goal
             goal_distance_avg = (goal.visionDistance + sum(self.goal_distances[-moving_avg_samples+1:])) / moving_avg_samples
+            
+            if goal_distance_avg < 1200:
+                print('TOO CLOSE BRO !!!!!')
+                return
 
             print('================')
 #             print("x average error: ", x_error_avg)
@@ -146,6 +150,7 @@ class ApproachBall(Node):
 
             ### Last resort: just kick the ball if time is running out TODO
             if time > 70:
+                print('---------- TIME RAN OUT ----------')
                 commands.kick()
                 kick_executed = True
 
