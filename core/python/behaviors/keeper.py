@@ -35,14 +35,14 @@ class Blocker(Node):
         robot = mem_objects.world_objects[robot_state.WO_SELF]
 
 #         beacon = mem_objects.world_objects[core.WO_BEACON_BLUE_YELLOW]
-#         if beacon.seen:
-#            z = np.array([beacon.visionDistance, beacon.visionBearing])
-#            self.data.append(z)
-#            mat = np.array(self.data)
-#            print(mat.shape)
-#            if len(self.data) > 2:
-#                print(np.cov(mat.T))
-#            print()
+        if ball.seen:
+           z = np.array([ball.visionDistance, ball.visionBearing])
+           self.data.append(z)
+           mat = np.array(self.data)
+           print(mat.shape)
+           if len(self.data) > 2:
+               print(np.cov(mat.T))
+           print()
 
 
         rob_x = robot.loc.x

@@ -17,10 +17,10 @@ from task import Task
 import memory
 
 time_delay = 0.1
-x_kp = 2e-3
+x_kp = 3e-3
 x_ki = 0.0
 x_kd = 3e-4
-y_kp = 0.85
+y_kp = 0.95
 y_ki = 0.0
 y_kd = 0.0
 theta_kp = 0.75
@@ -35,14 +35,19 @@ max_int_steps = 10 # if want to use all steps, then set to float("inf")
 x_error_thresh = 120 # w/in 12 cm of ball_distance_close behind ball
 y_error_thresh = 0.1
 theta_error_thresh = 0.075
+
+# x_error_thresh = 120 # w/in 12 cm of ball_distance_close behind ball
+# y_error_thresh = 0.1
+# theta_error_thresh = 0.075
+
 vel_thresh = 0.1
 
 top_cam_width = 320
 bot_cam_width = 320
 
 # TODO: change these so it doesn't dribble the ball too well into the penalty box
-kick_distance = 1600
-dribble_speed = 0.60
+kick_distance = 1500
+dribble_speed = 0.70
 
 ball_distance_close = 50
 ball_right_foot = 0.67
@@ -108,10 +113,15 @@ class ApproachBall(Node):
             ### Compute average distance to the goal
             goal_distance_avg = (goal.visionDistance + sum(self.goal_distances[-moving_avg_samples+1:])) / moving_avg_samples # TODO: fix
 
-            # print("ball_center ", ball_center, " goal_center ", goal_center)
-            # print("x error", x_error, "   |   ", "x average error", x_error_avg)
-            # print("y error", y_error, "   |   ", "y average error", y_error_avg)
-            # print("theta error", theta_error, "   |   ", "theta average error", theta_error_avg)
+#             print("ball_center ", ball_center, " goal_center ", goal_center)
+#             print("x error", x_error, "   |   ", "x average error", x_error_avg)
+#             print("y error", y_error, "   |   ", "y average error", y_error_avg)
+#             print("theta error", theta_error, "   |   ", "theta average error", theta_error_avg)
+
+            print('================')
+            print("x average error: ", x_error_avg)
+            print("y average error: ", y_error_avg)
+            print("theta average error: ", theta_error_avg)
 
             ### Add to previous errors
             self.x_errors.append(x_error)
@@ -160,12 +170,19 @@ class ApproachBall(Node):
                     commands.setWalkVelocity(dribble_speed, 0, 0)
                 else:
                     print('Kicking')
+                    print('----------> distance to goal: %d' % (goal_distance_avg))
                     commands.kick()
                 self.start_kick_frame = self.getFrames() if self.start_kick_frame == -1 else self.start_kick_frame
 
             ### Too far and kick not started so use PID to walk toward the ball
             else:
                 print('Walk toward ball')
+                if (abs(x_error_avg) > x_error_thresh):
+                    print('x_error_avg too high')
+                if (abs(y_error_avg) > y_error_thresh):
+                    print('y_error_avg too high')
+                if (abs(theta_error_avg) > theta_error_thresh):
+                    print('theta_error_avg too high')
                 commands.setWalkVelocity(x_vel, y_vel, theta_vel)
 
             # set previous time
