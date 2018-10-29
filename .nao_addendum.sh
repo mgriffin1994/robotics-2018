@@ -63,15 +63,15 @@ function nao_restart() {
     tmux send-keys C-c;
 
     # Naoqi window
-    sleep 0.1;
+    sleep 0.2;
     tmux select-pane -t 4;
     tmux send-keys "naoqi" C-m;
-    sleep 10;
+    sleep 12;
 
     # Motion window
     tmux select-pane -t 3;
     tmux send-keys "bin/motion" C-m;
-    sleep 1;
+    sleep 2;
 
     # Vision window
     tmux select-pane -t 2;
