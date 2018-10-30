@@ -39,7 +39,7 @@ void ParticleFilter::init(Point2D loc, float orientation) {
       float rand_prob = Random::inst().sampleU();
 
       if(!cache_.game_state->isPenaltyKick){
-          p.x = Random::inst().sampleN() * 50 - 1500;
+          p.x = Random::inst().sampleN() * 50 - 1500 + 325;
           p.y = Random::inst().sampleN() * 50;
           p.t = Random::inst().sampleN() * M_PI/8;
           p.w = 1.0/num_particles;
@@ -55,7 +55,7 @@ void ParticleFilter::init(Point2D loc, float orientation) {
             p.y = Random::inst().sampleN() * 50 + 850;
             p.t = Random::inst().sampleN() * M_PI/8 - M_PI/2;
             p.w = 1.0/num_particles;
-        } 
+        }
       }
 
       // p.x = 0; //static_cast<int>(frame * 5), 250);
@@ -159,8 +159,8 @@ void ParticleFilter::processFrame() {
   float avg_px = 0.0;
   float avg_py = 0.0;
   float avg_pt = 0.0;
-  
-  int threshold = 150;
+
+  int threshold = 50;
 
 
   if (cache_.game_state->isPenaltyKick && (mean_.translation.x < -1500 - threshold || mean_.translation.x > 500 + 2*threshold || abs(mean_.translation.y) > 1000 + threshold)){
@@ -180,31 +180,31 @@ void ParticleFilter::processFrame() {
               p.y = Random::inst().sampleN() * 50 + 850;
               p.t = Random::inst().sampleN() * M_PI/8 - M_PI/2;
               p.w = 1.0/num_particles;
-          } 
+          }
 
           //TODO: change this to AMCL and sample points based about measurements
       }
       return;
   }
   //TODO see if rotation also bad
-  if(!cache_.game_state->isPenaltyKick && (abs(mean_.translation.y) > 700 + threshold || mean_.translation.x < -1500 - threshold || mean_.translation.x > -850 + threshold)){
+  if(!cache_.game_state->isPenaltyKick && (abs(mean_.rotation) > M_PI/2 || abs(mean_.translation.y) > 700 + threshold || mean_.translation.x < -1500 - threshold || mean_.translation.x > -850 + threshold)){
       cout << "Out of bounds" << std::endl;
       //cout << "Bot: " << mean_.translation.x << " " << mean_.translation.y;
 
       for(auto& p : particles()) {
 
-        p.x = Random::inst().sampleN() * 50 - 1500;
+        p.x = Random::inst().sampleN() * 50 - 1500 + 325;
         p.y = Random::inst().sampleN() * 50;
         p.t = Random::inst().sampleN() * M_PI/8;
         p.w = 1.0/num_particles;
-        
+
       }
       return;
   }
 
 
-  float lambda_x = max3(disp.translation.x*2.0, disp.translation.y*1.0, 5);
-  float lambda_y = max3(disp.translation.x*1.0, disp.translation.y*2.0, 5);
+  float lambda_x = max3(disp.translation.x*2.0, disp.translation.y*1.0, 2);
+  float lambda_y = max3(disp.translation.x*1.0, disp.translation.y*2.0, 2);
   float lambda_t = max3(abs(disp.translation.x+disp.translation.y)*0.0, disp.rotation*2.7, 0.072);
 
 //  std::cout << std::endl;
@@ -248,7 +248,7 @@ void ParticleFilter::processFrame() {
       //      new_pX = Random::inst().sampleN()*20 + p.x;
       //      new_pY = Random::inst().sampleN()*20 + p.y;
       // } */
-      
+
       // if (disp.rotation == 0) {
       //     new_pT = Random::inst().sampleN()*(M_PI/128) + p.t + disp.rotation;
       //     //new_pT = p.t;
