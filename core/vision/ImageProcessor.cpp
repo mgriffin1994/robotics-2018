@@ -283,10 +283,76 @@ void ImageProcessor::processFrame(){
   if(!color_segmenter_->classifyImage(color_table_)) return;
   calculateBlobs();
   detectBall();
-  if(camera_ == Camera::BOTTOM) return;
+  if(camera_ == Camera::BOTTOM) {
+	detectPenaltyLine();
+	return;
+  }
 
   detectGoal();
   beacon_detector_->findBeacons(detected_blobs);
+}
+
+void ImageProcessor::detectPenaltyLine() {
+	int imageX = -1, imageY = -1;
+	findPenaltyLine(imageX, imageY);
+	WorldObject* line = &vblocks_.world_object->objects_[WO_OWN_PENALTY];
+	if(imageX == -1 && imageY == -1){
+		line->seen = false;
+		return;
+	}
+	line->imageCenterX = imageX;
+	line->imageCenterY = imageY;
+	Position p = cmatrix_.getWorldPosition(imageX, imageY);
+	line->visionBearing = cmatrix_.bearing(p);
+	line->visionElevation = cmatrix_.elevation(p);
+	line->visionDistance = cmatrix_.groundDistance(p);
+	line->fromTopCamera = Camera::BOTTOM;
+#if MACRO
+	cout << "Line detected at: " << line->imageCenterX << "," << line->imageCenterY << endl;
+	cout << "Line pan: " << line->visionBearing << "   Line tilt: " << line->visionElevation << endl;
+	cout << "Line distance: " << line->visionDistance << endl << endl;
+#endif
+	line->seen = true;
+}
+
+// TODO: Lower these if needed
+#define LINE_SIZE 2500
+#define LINE_DENSITY 0.25
+void ImageProcessor::findPenaltyLine(int& imageX, int& imageY) {
+	if(getSegImg() == NULL){
+		imageX = -1;
+		imageY = -1;
+		// cout << "Line not detected" << endl;
+		return;
+	}
+	auto whiteBlobs = filterBlobs(detected_blobs, c_WHITE, LINE_SIZE);
+	sort(whiteBlobs.begin(), whiteBlobs.end(), BlobCompare);
+	if(whiteBlobs.size() > 0) {
+		for(auto blob : whiteBlobs) {
+			if (blob.avgY < 120) {
+				double rectArea = (blob.dx) * (blob.dy);
+				double density = (blob.lpCount / rectArea);
+				// cout << "Goal detected at: " << blob.avgX << "\t" << blob.yf << endl;
+				cout << "Line size: " << blob.lpCount << endl;
+				cout << "Line density: " << density << endl;
+				cout << "Blob avgY: " << blob.avgY << endl;
+				if (density > LINE_DENSITY) {
+					imageX = blob.avgX;
+					imageY = blob.yf;
+				}
+				else {
+					// cout << "Skipping " << blob.avgX << " " << blob.yf << " " << density << endl;
+					imageX = -1;
+					imageY = -1;
+				}
+			}
+		}
+	}
+	else {
+		imageX = -1;
+		imageY = -1;
+		// cout << "Line not detected" << endl;
+	}
 }
 
 void ImageProcessor::detectBall() {
@@ -362,8 +428,9 @@ void ImageProcessor::detectGoal() {
     goal->seen = true;
 }
 
-// TODO: goal won't be this big, consider lowering a little
+// TODO: goal in reality is around 3500
 #define GOAL_SIZE 2000
+#define GOAL_DENSITY 0.5
 
 void ImageProcessor::findGoal(int& imageX, int& imageY) {
     if(getSegImg() == NULL){
@@ -378,7 +445,8 @@ void ImageProcessor::findGoal(int& imageX, int& imageY) {
         // cout << "Goal detected at: " << blueBlobs[0].avgX << "\t" << blueBlobs[0].yf << endl;
         double rectArea = (blueBlobs[0].dx) * (blueBlobs[0].dy);
         double density = (blueBlobs[0].lpCount / rectArea);
-        if (density > 0.7) {
+        // cout << "density: " << density << endl;
+        if (density > GOAL_DENSITY) {
             imageX = blueBlobs[0].avgX;
             imageY = blueBlobs[0].yf;
         }

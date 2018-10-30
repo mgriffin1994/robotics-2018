@@ -79,6 +79,7 @@ class ApproachBall(Node):
         ### Grab the ball and goal world objects
         ball = mem_objects.world_objects[core.WO_BALL]
         goal = mem_objects.world_objects[core.WO_UNKNOWN_GOAL]
+	line = mem_objects.world_objects[core.WO_OWN_PENALTY]
 
         ### Tilt the head so we can see more
         commands.setHeadTilt(-18)
@@ -114,9 +115,13 @@ class ApproachBall(Node):
 
             ### Compute average distance to the goal
             goal_distance_avg = (goal.visionDistance + sum(self.goal_distances[-moving_avg_samples+1:])) / moving_avg_samples
-            
-            if goal_distance_avg < 1200:
+
+	    if line.seen:
+		print('line seen')
+
+            if goal.seen and goal_distance_avg < 1200:
                 print('TOO CLOSE BRO !!!!!')
+                # TODO: just make him stop?
                 return
 
             print('================')

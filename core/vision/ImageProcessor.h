@@ -91,6 +91,8 @@ class ImageProcessor {
     void findBall(int& imageX, int& imageY);
     void detectGoal();
     void findGoal(int& imageX, int& imageY);
+    void detectPenaltyLine();
+    void findPenaltyLine(int& imageX, int& imageY);
   private:
     int getTeamColor();
     double getCurrentTime();
