@@ -12,38 +12,11 @@ alias kick='bin/copy_robot kick 10.202.16.61'
 alias fastcompileall='bin/compile all --fast && send_all'
 alias ns='./nao_start.sh'
 
-function s() {
-    if [[ $# -eq 1 ]]; then
-        bin/copy_robot vision 10.202.16.61;
-    fi
-
-    TARGET=$1;
-    IP=$2;
-
-    if [ "$TARGET" == "p" ]; then
-        TARGET="python";
-    elif [ "$TARGET" == "v" ]; then
-        TARGET="vision";
-    elif [ "$TARGET" == "a" ]; then
-        TARGET="all";
-    fi
-
-    if [ "$IP" == "e" ]; then
-        IP="11.0.1.61";
-    else
-        IP="10.202.16.61";
-    fi
-
-    bin/copy_robot $TARGET $IP;
-}
-
 function c() {
     if [[ $# -eq 1 ]]; then
         bin/compile vision --fast;
     fi
-
     TARGET=$1;
-
     if [ "$TARGET" == "p" ]; then
         TARGET="python";
     elif [ "$TARGET" == "v" ]; then
@@ -51,8 +24,41 @@ function c() {
     elif [ "$TARGET" == "a" ]; then
         TARGET="all";
     fi
-
     bin/compile $TARGET --fast;
+}
+
+function s() {
+    if [[ $# -eq 1 ]]; then
+        bin/copy_robot vision 10.202.16.61;
+    fi
+    TARGET=$1;
+    IP=$2;
+    if [ "$TARGET" == "p" ]; then
+        TARGET="python";
+    elif [ "$TARGET" == "v" ]; then
+        TARGET="vision";
+    elif [ "$TARGET" == "a" ]; then
+        TARGET="all";
+    else
+        TARGET="vision";
+    fi
+    if [ "$IP" == "e" ]; then
+        IP="11.0.1.61";
+    elif [ "$IP" == "w" ]; then
+        IP="10.202.16.61";
+    else
+        IP="10.202.16.61";
+    fi
+    bin/copy_robot $TARGET $IP;
+}
+
+function d() {
+    if [[ $# -eq 1 ]]; then
+        c && s;
+    fi
+    TARGET=$1;
+    IP=$2;
+    c $TARGET && s $TARGET $IP;
 }
 
 function nao_connect() {

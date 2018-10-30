@@ -314,8 +314,6 @@ void ImageProcessor::detectPenaltyLine() {
 #endif
 	line->seen = true;
 }
-
-// TODO: Lower these if needed
 #define LINE_SIZE 2500
 #define LINE_DENSITY 0.25
 void ImageProcessor::findPenaltyLine(int& imageX, int& imageY) {
@@ -329,7 +327,7 @@ void ImageProcessor::findPenaltyLine(int& imageX, int& imageY) {
 	sort(whiteBlobs.begin(), whiteBlobs.end(), BlobCompare);
 	if(whiteBlobs.size() > 0) {
 		for(auto blob : whiteBlobs) {
-			if (blob.avgY < 120) {
+			if (blob.avgY > 60 && blob.avgY < 120) {
 				double rectArea = (blob.dx) * (blob.dy);
 				double density = (blob.lpCount / rectArea);
 				// cout << "Goal detected at: " << blob.avgX << "\t" << blob.yf << endl;

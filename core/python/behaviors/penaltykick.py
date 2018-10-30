@@ -53,6 +53,8 @@ slow_dribble_speed = 0.30
 ball_distance_close = 20
 ball_right_foot = 0.67
 
+max_time_kick = 80
+
 class ApproachBall(Node):
 
     def __init__(self):
@@ -73,7 +75,7 @@ class ApproachBall(Node):
 
     def run(self):
 
-        if self.kick_executed == True:
+        if self.kick_executed == True and self.getFrames() - self.start_kick_frame > 10:
             return
 
         ### Grab the ball and goal world objects
@@ -117,12 +119,16 @@ class ApproachBall(Node):
             goal_distance_avg = (goal.visionDistance + sum(self.goal_distances[-moving_avg_samples+1:])) / moving_avg_samples
 
 	    if line.seen:
-		print('line seen')
+		print('SAW LINE. STOPPED')
+		commands.kick()
+		kick_executed = True
+		self.start_kick_frame = self.getFrames()
+		return
 
-            if goal.seen and goal_distance_avg < 1200:
-                print('TOO CLOSE BRO !!!!!')
-                # TODO: just make him stop?
-                return
+            #if goal.seen and goal_distance_avg < 1200:
+            #    print('TOO CLOSE BRO !!!!!')
+            #    # TODO: just make him stop?
+            #    return
 
             print('================')
 #             print("x average error: ", x_error_avg)
@@ -154,10 +160,12 @@ class ApproachBall(Node):
             print('time: %f' % (time))
 
             ### Last resort: just kick the ball if time is running out TODO
-            if time > 70:
+            if time > max_time_kick:
                 print('---------- TIME RAN OUT ----------')
                 commands.kick()
                 kick_executed = True
+		self.start_kick_frame = self.getFrames()
+		return
 
             ### Compute velocities
             prev_x_avg = sum(self.x_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
