@@ -21,6 +21,7 @@ y_thresh = 500
 time_delay = 1.0 / 30.
 center_region = 125
 x_thresh = 50
+num_samples = 10
 
 vision_center_thresh = 200
 keep_center_gain = 0.007
@@ -47,6 +48,7 @@ class Blocker(Node):
         super(Blocker, self).__init__()
         self.data = []
         self.ball_not_seen_frames = 0
+        self.bearing_samples = [0] * num_samples
 
     def run(self):
 
@@ -91,14 +93,14 @@ class Blocker(Node):
 
         x_vel, y_vel = ball_vel.x, ball_vel.y
 
-        if ball.seen:
-            #angle = np.arctan2((y_pos - rob_y), (x_pos - rob_x)) - rob_t
-            commands.setHeadPan(ball.visionBearing, 0.1)
-        else:
-            self.ball_not_seen_frames += 1
-            if self.ball_not_seen_frames > 100:
-                commands.setHeadPan(0, 0.1)
-                self.ball_not_seen_frames = 0
+#        if ball.seen:
+#            #angle = np.arctan2((y_pos - rob_y), (x_pos - rob_x)) - rob_t
+#            commands.setHeadPan(ball.visionBearing, 0.1)
+#        else:
+#            self.ball_not_seen_frames += 1
+#            if self.ball_not_seen_frames > 100:
+#                commands.setHeadPan(0, 0.1)
+#                self.ball_not_seen_frames = 0
 
         #friction 0.966
 
@@ -125,30 +127,39 @@ class Blocker(Node):
 
                 print(choice)
                 #print()
-                if choice:
-                    self.postSignal(choice)
+                #if choice:
+                    #self.postSignal(choice)
+
+        if ball.seen:
+            self.bearing_samples.append(ball.visionBearing)
+            bearing_avg = sum(self.bearing_samples) / num_samples
+            commands.setWalkVelocity(0.2, 0.0, bearing_avg)
+            self.bearing_samples.pop(0)
+            print("Vision Bearing: ", ball.visionBearing)
+            print("Avg Vision Bearing: ", bearing_avg)
+
         #TODO: change init location of robot to be center of box?
-        if abs(rob_y - y_pos) > vision_center_thresh:
-            diff = y_pos - rob_y
-
-            #If too close to sides of box, don't move
-
-            if (diff > 0 and rob_y < -700 + 150):
-                commands.setWalkVelocity(0, 0, 0)
-                return
-
-            elif (diff < 0 and rob_y > 700 - 150):
-                commands.setWalkVelocity(0, 0, 0)
-                return
-
-            #print('diff: %d' % (diff))
-            #print('diff * keep_center_gain: %f' % (diff * keep_center_gain))
-            #if (diff < 0):
-            commands.setWalkVelocity(0.1, keep_center_gain * diff, 0)
-            #else:
-            #    commands.setWalkVelocity(0.1, keep_center_gain * diff, 0.05)
-        else:
-            commands.setWalkVelocity(0, 0, 0)
+#         if abs(rob_y - y_pos) > vision_center_thresh:
+#             diff = y_pos - rob_y
+#
+#             #If too close to sides of box, don't move
+#
+#             if (diff > 0 and rob_y < -700 + 150):
+#                 commands.setWalkVelocity(0, 0, 0)
+#                 return
+#
+#             elif (diff < 0 and rob_y > 700 - 150):
+#                 commands.setWalkVelocity(0, 0, 0)
+#                 return
+#
+#             #print('diff: %d' % (diff))
+#             #print('diff * keep_center_gain: %f' % (diff * keep_center_gain))
+#             #if (diff < 0):
+#             #commands.setWalkVelocity(0.1, keep_center_gain * diff, 0)
+#             #else:
+#             #    commands.setWalkVelocity(0.1, keep_center_gain * diff, 0.05)
+#         else:
+#             commands.setWalkVelocity(0, 0, 0)
 
 
 
