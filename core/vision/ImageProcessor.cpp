@@ -283,10 +283,71 @@ void ImageProcessor::processFrame(){
   if(!color_segmenter_->classifyImage(color_table_)) return;
   calculateBlobs();
   detectBall();
+  detectPenaltyLine();
   if(camera_ == Camera::BOTTOM) return;
 
   detectGoal();
   beacon_detector_->findBeacons(detected_blobs);
+}
+
+void ImageProcessor::detectPenaltyLine() {
+    int imageX = -1, imageY = -1;
+    findPenaltyLine(imageX, imageY);
+
+    WorldObject* line = &vblocks_.world_object->objects_[WO_OWN_PENALTY];
+    if(imageX == -1 && imageY == -1){
+        line->seen = false;
+        return;
+    }
+
+    line->imageCenterX = imageX;
+    line->imageCenterY = imageY;
+
+    Position p = cmatrix_.getWorldPosition(imageX, imageY);
+    line->visionBearing = cmatrix_.bearing(p);
+    line->visionElevation = cmatrix_.elevation(p);
+    line->visionDistance = cmatrix_.groundDistance(p);
+    line->fromTopCamera = (camera_ == Camera::TOP);
+
+#if MACRO
+    cout << "Line detected at: " << line->imageCenterX << "," << line->imageCenterY << endl;
+    cout << "Line pan: " << line->visionBearing << "   Line tilt: " << line->visionElevation << endl;
+    cout << "Line distance: " << line->visionDistance << endl << endl;
+#endif
+
+    line->seen = true;
+}
+
+#define LINE_SIZE 500
+
+void ImageProcessor::findPenaltyLine(int& imageX, int& imageY) {
+    if(getSegImg() == NULL){
+        imageX = -1;
+        imageY = -1;
+        // cout << "Line not detected" << endl;
+        return;
+    }
+    auto whiteBlobs = filterBlobs(detected_blobs, c_WHITE, LINE_SIZE);
+    sort(whiteBlobs.begin(), whiteBlobs.end(), BlobCompare);
+    if(whiteBlobs.size() > 0) {
+        // cout << "Goal detected at: " << whiteBlobs[0].avgX << "\t" << whiteBlobs[0].yf << endl;
+        double rectArea = (whiteBlobs[0].dx) * (whiteBlobs[0].dy);
+        double density = (whiteBlobs[0].lpCount / rectArea);
+        if (density > 0.7) {
+            imageX = whiteBlobs[0].avgX;
+            imageY = whiteBlobs[0].yf;
+        }
+        else {
+            // cout << "Skipping " << whiteBlobs[0].avgX << " " << whiteBlobs[0].yf << " " << density << endl;
+            imageX = -1;
+            imageY = -1;
+        }
+    }
+    else {
+        imageX = -1;
+        imageY = -1;
+        // cout << "Line not detected" << endl;
+    }
 }
 
 void ImageProcessor::detectBall() {
