@@ -120,6 +120,7 @@ class ApproachBall(Node):
 
 	    if line.seen:
 		print('SAW LINE. STOPPED')
+		# TODO: take ball position into account to fix problem where stop but tapped ball and then kick from too far away
 		commands.kick()
 		kick_executed = True
 		self.start_kick_frame = self.getFrames()
