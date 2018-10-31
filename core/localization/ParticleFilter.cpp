@@ -203,9 +203,9 @@ void ParticleFilter::processFrame() {
   }
 
 
-  float lambda_x = max3(disp.translation.x*2.0, disp.translation.y*1.0, 2);
-  float lambda_y = max3(disp.translation.x*1.0, disp.translation.y*2.0, 2);
-  float lambda_t = max3(abs(disp.translation.x+disp.translation.y)*0.0, disp.rotation*2.7, 0.072);
+  // float lambda_x = max3(disp.translation.x*2.0, disp.translation.y*1.0, 2);
+  // float lambda_y = max3(disp.translation.x*1.0, disp.translation.y*2.0, 2);
+  // float lambda_t = max3(abs(disp.translation.x+disp.translation.y)*0.0, disp.rotation*2.7, 0.072);
 
 //  std::cout << std::endl;
 //  std::cout << "Lambda: " << lambda_x << " " << lambda_y << " " << lambda_t << std::endl;
@@ -218,9 +218,9 @@ void ParticleFilter::processFrame() {
 
       // NOTE: new_pT is absolute angle for the particle, theta is relative angle from the robot, theta_pred is relative angle from the particle
       //This is fine, the sim just has odometry noise
-      // float new_pX = Random::inst().sampleN()*5 + p.x + disp.translation.x*cos(p.t) + disp.translation.y*sin(p.t);
-      // float new_pY = Random::inst().sampleN()*5 + p.y + disp.translation.x*sin(p.t) - disp.translation.y*cos(p.t);
-      // float new_pT = Random::inst().sampleN()*(M_PI/32) + p.t + disp.rotation;
+      float new_pX = Random::inst().sampleN() + p.x + disp.translation.x*cos(p.t) - disp.translation.y*sin(p.t);
+      float new_pY = Random::inst().sampleN() + p.y + disp.translation.x*sin(p.t) + disp.translation.y*cos(p.t);
+      float new_pT = Random::inst().sampleN()*(M_PI/64) + p.t + disp.rotation;
 
 
 
@@ -229,14 +229,22 @@ void ParticleFilter::processFrame() {
       // float lambda_y = max3(disp.translation.x*1.0, disp.translation.y*2.0, 25);
       // float lambda_t = max3(abs(disp.translation.x+disp.translation.y)*0.002, disp.rotation*1.0, 0.1);
 
-      float delta_x = disp.translation.x + lambda_x*Random::inst().sampleN();
-      float delta_y = disp.translation.y + lambda_y*Random::inst().sampleN();
-      float delta_t = disp.rotation + lambda_t*Random::inst().sampleN();
 
 
-      float new_pX = p.x + delta_x*cos(p.t) + delta_y*sin(p.t);
-      float new_pY = p.y + delta_x*sin(p.t) - delta_y*cos(p.t);
-      float new_pT = p.t + delta_t;
+
+
+      // float delta_x = disp.translation.x + lambda_x*Random::inst().sampleN();
+      // float delta_y = disp.translation.y + lambda_y*Random::inst().sampleN();
+      // float delta_t = disp.rotation + lambda_t*Random::inst().sampleN();
+
+
+      // float new_pX = p.x + delta_x*cos(p.t) + delta_y*sin(p.t);
+      // float new_pY = p.y - delta_x*sin(p.t) + delta_y*cos(p.t);
+      // float new_pT = p.t + delta_t;
+
+
+
+
 
       // Tighten it up! if completely stationary
       // if (disp.translation.x == 0 && disp.translation.y == 0) {
