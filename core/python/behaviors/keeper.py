@@ -51,7 +51,6 @@ class Blocker(Node):
         self.start_scan = -1
         self.ball_start_scan = -1
         self.cur_velocity = 0
-        self.flag = False
 
     def run(self):
         commands.setStiffness()
@@ -169,23 +168,19 @@ class Blocker(Node):
         # commands.setWalkVelocity(-x_diff*keep_center_gain, y_diff*keep_center_gain, -theta_diff*0.2) # TODO: put bakc
 
 
-        if x_pos - rob_x > 750 or not ball.seen:
-            if self.getFrames() % rescan == 0 or self.start_scan != -1:
-                #commands.setWalkVelocity(0, 0, 0)
-                self.start_scan = self.getFrames() if self.start_scan == -1 else self.start_scan
-                commands.setHeadPan(-math.pi / 5, 0.10)
-                if self.getFrames() - self.start_scan > 20: #0.5 sec at 100Hz (min 10)
-                    commands.setHeadPan(math.pi / 3, 0.4)
-                    if self.getFrames() - self.start_scan > 60: #0.5 sec at 100Hz
-                        commands.setHeadPan(0, 0.1)
-                        self.start_scan = -1
-        elif ball.seen:
-            commands.setHeadPan(ball.visionBearing, 0.1)
-
-
-        if not self.flag:
-            self.postSignal("center")
-            self.flag = True
+# TODO: Put back
+#        if x_pos - rob_x > 750 or not ball.seen:
+#            if self.getFrames() % rescan == 0 or self.start_scan != -1:
+#                #commands.setWalkVelocity(0, 0, 0)
+#                self.start_scan = self.getFrames() if self.start_scan == -1 else self.start_scan
+#                commands.setHeadPan(-math.pi / 5, 0.10)
+#                if self.getFrames() - self.start_scan > 20: #0.5 sec at 100Hz (min 10)
+#                    commands.setHeadPan(math.pi / 3, 0.4)
+#                    if self.getFrames() - self.start_scan > 60: #0.5 sec at 100Hz
+#                        commands.setHeadPan(0, 0.1)
+#                        self.start_scan = -1
+#        elif ball.seen:
+#            commands.setHeadPan(ball.visionBearing, 0.1)
 
         # TODO: Add sit
         # if x_pos - rob_x < 250: # TODO: put back
@@ -293,7 +288,7 @@ class Playing(LoopingStateMachine):
         #}
         for name in blocks:
             b = blocks[name]
-            self.add_transition(blocker, S(name), b, T(100), blocker)
+            self.add_transition(blocker, S(name), b, T(10.25), blocker)
 
         self.add_transition(blocker, S("penalty"), penalty)
         self.add_transition(penalty, S("blocker"), blocker)

@@ -207,7 +207,7 @@ class Squat(Task):
     ])
 
 class SitBlock(Task):
-  def __init__(self):
+  def __init__(self, time = 2.0):
     super(SitBlock, self).__init__(time=time)
     self.setChain([
       PoseSequence(
@@ -249,7 +249,7 @@ class BlockRight(Task):
     super(BlockRight, self).__init__(time=time)
     self.setSubtask(PoseSequence(
       cfgpose.blockright, 1.0,
-      cfgpose.blockright, self.time,
+      cfgpose.blockright, 1.0,
       cfgpose.sittingPoseNoArms, 2.0,
       cfgpose.standingPose, 2.0
     ))
@@ -259,7 +259,7 @@ class BlockLeft(Task):
     super(BlockLeft, self).__init__(time=time)
     self.setSubtask(PoseSequence(
       cfgpose.blockleft, 1.0,
-      cfgpose.blockleft, self.time,
+      cfgpose.blockleft, 1.0,
       cfgpose.sittingPoseNoArms, 2.0,
       cfgpose.standingPose, 2.0
     ))
