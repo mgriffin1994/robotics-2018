@@ -283,16 +283,18 @@ void ImageProcessor::processFrame(){
   if(!color_segmenter_->classifyImage(color_table_)) return;
   calculateBlobs();
   detectBall();
-  detectPenaltyLine();
-  if(camera_ == Camera::BOTTOM) return;
-
+  if(camera_ == Camera::BOTTOM) {
+      detectPenaltyLine();
+      return;
+  }
   detectGoal();
   beacon_detector_->findBeacons(detected_blobs);
 }
 
 void ImageProcessor::detectPenaltyLine() {
     int imageX = -1, imageY = -1;
-    findPenaltyLine(imageX, imageY);
+    int xi = -1, xf = -1;
+    findPenaltyLine(imageX, imageY, xi, xf);
 
     WorldObject* line = &vblocks_.world_object->objects_[WO_OWN_PENALTY];
     if(imageX == -1 && imageY == -1){
@@ -302,6 +304,8 @@ void ImageProcessor::detectPenaltyLine() {
 
     line->imageCenterX = imageX;
     line->imageCenterY = imageY;
+    line->lowerHeight = xi;
+    line->upperHeight = xf;
 
     Position p = cmatrix_.getWorldPosition(imageX, imageY);
     line->visionBearing = cmatrix_.bearing(p);
@@ -318,9 +322,10 @@ void ImageProcessor::detectPenaltyLine() {
     line->seen = true;
 }
 
+// TODO: Lower these if needed
 #define LINE_SIZE 500
-
-void ImageProcessor::findPenaltyLine(int& imageX, int& imageY) {
+#define LINE_DENSITY 0.25
+void ImageProcessor::findPenaltyLine(int& imageX, int& imageY, int& xi, int& xf) {
     if(getSegImg() == NULL){
         imageX = -1;
         imageY = -1;
@@ -330,22 +335,34 @@ void ImageProcessor::findPenaltyLine(int& imageX, int& imageY) {
     auto whiteBlobs = filterBlobs(detected_blobs, c_WHITE, LINE_SIZE);
     sort(whiteBlobs.begin(), whiteBlobs.end(), BlobCompare);
     if(whiteBlobs.size() > 0) {
-        // cout << "Goal detected at: " << whiteBlobs[0].avgX << "\t" << whiteBlobs[0].yf << endl;
-        double rectArea = (whiteBlobs[0].dx) * (whiteBlobs[0].dy);
-        double density = (whiteBlobs[0].lpCount / rectArea);
-        if (density > 0.7) {
-            imageX = whiteBlobs[0].avgX;
-            imageY = whiteBlobs[0].yf;
-        }
-        else {
-            // cout << "Skipping " << whiteBlobs[0].avgX << " " << whiteBlobs[0].yf << " " << density << endl;
-            imageX = -1;
-            imageY = -1;
+        for(auto blob : whiteBlobs) {
+            if (blob.avgY > 60 && blob.avgY < 120) {
+                double rectArea = (whiteBlobs[0].dx) * (whiteBlobs[0].dy);
+                double density = (whiteBlobs[0].lpCount / rectArea);
+                cout << "Line size: " << blob.lpCount << endl;
+                cout << "Line density: " << density << endl;
+                cout << "Blob avgY: " >> blob.avgY << endl;
+                if (density > LINE_DENSITY) {
+                    imageX = whiteBlobs[0].avgX;
+                    imageY = whiteBlobs[0].yf;
+                    xi = whiteBlobs[0].xi;
+                    xf = whiteBlobs[0].xf;
+                }
+                else {
+                    // cout << "Skipping " << whiteBlobs[0].avgX << " " << whiteBlobs[0].yf << " " << density << endl;
+                    imageX = -1;
+                    imageY = -1;
+                    xi = whiteBlobs[0].xi;
+                    xf = whiteBlobs[0].xf;
+                }
+            }
         }
     }
     else {
         imageX = -1;
         imageY = -1;
+        xi = whiteBlobs[0].xi;
+        xf = whiteBlobs[0].xf;
         // cout << "Line not detected" << endl;
     }
 }
@@ -423,8 +440,9 @@ void ImageProcessor::detectGoal() {
     goal->seen = true;
 }
 
-// TODO: goal won't be this big, consider lowering a little
+// TODO: goal in reality is around 3500
 #define GOAL_SIZE 2000
+#define GOAL_DENSITY 0.5
 
 void ImageProcessor::findGoal(int& imageX, int& imageY) {
     if(getSegImg() == NULL){
@@ -439,7 +457,7 @@ void ImageProcessor::findGoal(int& imageX, int& imageY) {
         // cout << "Goal detected at: " << blueBlobs[0].avgX << "\t" << blueBlobs[0].yf << endl;
         double rectArea = (blueBlobs[0].dx) * (blueBlobs[0].dy);
         double density = (blueBlobs[0].lpCount / rectArea);
-        if (density > 0.7) {
+        if (density > GOAL_DENSITY) {
             imageX = blueBlobs[0].avgX;
             imageY = blueBlobs[0].yf;
         }
