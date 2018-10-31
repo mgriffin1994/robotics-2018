@@ -339,9 +339,11 @@ void ImageProcessor::findPenaltyLine(int& imageX, int& imageY, int& xi, int& xf)
             if (blob.avgY > 60 && blob.avgY < 120) {
                 double rectArea = (blob.dx) * (blob.dy);
                 double density = (blob.lpCount / rectArea);
+#if MACRO
                 cout << "Line size: " << blob.lpCount << endl;
                 cout << "Line density: " << density << endl;
                 cout << "Blob avgY: " << blob.avgY << endl;
+#endif
                 if (density > LINE_DENSITY) {
                     imageX = blob.avgX;
                     imageY = blob.yf;

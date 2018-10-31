@@ -51,13 +51,10 @@ class Blocker(Node):
         self.start_scan = -1
         self.ball_start_scan = -1
         self.cur_velocity = 0
+        self.flag = False
 
     def run(self):
-
-        self.postSignal("center")
-
-        return
-
+        commands.setStiffness()
         state = game_state
 
         # Test switch to Penalty Kick
@@ -185,6 +182,11 @@ class Blocker(Node):
         elif ball.seen:
             commands.setHeadPan(ball.visionBearing, 0.1)
 
+
+        if not self.flag:
+            self.postSignal("center")
+            self.flag = True
+
         # TODO: Add sit
         # if x_pos - rob_x < 250: # TODO: put back
             # commands.setWalkVelocity(0, 0, 0) # TODO: put back
@@ -284,7 +286,7 @@ class Playing(LoopingStateMachine):
 
         blocks = {"left": pose.BlockLeft(),
                    "right": pose.BlockRight(),
-                   "center": pose.BlockCenter()
+                   "center": pose.SitBlock(),
                    }
         #blocks = {
         #    "center": pose.SitBlock()

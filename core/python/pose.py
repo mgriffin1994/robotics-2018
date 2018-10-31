@@ -208,7 +208,7 @@ class Squat(Task):
 
 class SitBlock(Task):
   def __init__(self):
-    super(Squat, self).__init__(time=time)
+    super(SitBlock, self).__init__(time=time)
     self.setChain([
       PoseSequence(
         cfgpose.sittingPoseV3, 0.4,
