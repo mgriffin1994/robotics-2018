@@ -14,6 +14,7 @@ from memory import joint_commands, localization_mem, robot_state
 import UTdebug
 import math
 import numpy as np
+from task import Task
 
 predict_secs = 20
 y_thresh = 400
@@ -116,6 +117,10 @@ class Blocker(Node):
                 self.postSignal(choice)
         #'''
 
+class Ready(Task):
+    def run(self):
+        commands.stand()
+        
 
 class Playing(LoopingStateMachine):
     def setup(self):
@@ -126,5 +131,5 @@ class Playing(LoopingStateMachine):
                   }
         for name in blocks:
             b = blocks[name]
-            self.add_transition(blocker, S(name), b, T(3.25), blocker)
+            self.add_transition(blocker, S(name), b, T(10.25), blocker)
 # TODO make T back to T(5) when done testing
