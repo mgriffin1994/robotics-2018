@@ -187,20 +187,21 @@ void ParticleFilter::processFrame() {
       return;
   }
   //TODO see if rotation also bad
-  if(!cache_.game_state->isPenaltyKick && (abs(mean_.rotation) > M_PI/2 || abs(mean_.translation.y) > 700 + threshold || mean_.translation.x < -1500 - threshold || mean_.translation.x > -850 + threshold)){
-      cout << "Out of bounds" << std::endl;
-      //cout << "Bot: " << mean_.translation.x << " " << mean_.translation.y;
+  // if(!cache_.game_state->isPenaltyKick && (abs(mean_.rotation) > M_PI/2 || abs(mean_.translation.y) > 700 + threshold || mean_.translation.x < -1500 - threshold || mean_.translation.x > -850 + threshold)){
+  //     cout << "Out of bounds" << std::endl;
+  //     //cout << "Bot: " << mean_.translation.x << " " << mean_.translation.y;
 
-      for(auto& p : particles()) {
+  //     for(auto& p : particles()) {
 
-        p.x = Random::inst().sampleN() * 50 - 1500 + 325;
-        p.y = Random::inst().sampleN() * 50;
-        p.t = Random::inst().sampleN() * M_PI/8;
-        p.w = 1.0/num_particles;
+  //       p.x = Random::inst().sampleN() * 50 - 1500 + 325;
+  //       p.y = Random::inst().sampleN() * 50;
+  //       p.t = Random::inst().sampleN() * M_PI/8;
+  //       p.w = 1.0/num_particles;
 
-      }
-      return;
-  }
+  //     }
+  //     return;
+  // }
+  //TODO: put back in???
 
 
   // float lambda_x = max3(disp.translation.x*2.0, disp.translation.y*1.0, 2);
