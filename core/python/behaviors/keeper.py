@@ -54,6 +54,10 @@ class Blocker(Node):
 
     def run(self):
 
+        self.postSignal("center")
+
+        return
+
         state = game_state
 
         # Test switch to Penalty Kick
@@ -148,7 +152,7 @@ class Blocker(Node):
         if ball.seen:
             self.bearing_samples.append(ball.visionBearing)
             bearing_avg = sum(self.bearing_samples) / num_samples
-            commands.setWalkVelocity(0.2, 0.0, bearing_avg)
+            # commands.setWalkVelocity(0.2, 0.0, bearing_avg) # TODO: put back
             self.bearing_samples.pop(0)
             #print("Vision Bearing: ", ball.visionBearing)
             #print("Avg Vision Bearing: ", bearing_avg)
@@ -165,7 +169,7 @@ class Blocker(Node):
         #keep_center_gain = 0.0
 
 
-        commands.setWalkVelocity(-x_diff*keep_center_gain, y_diff*keep_center_gain, -theta_diff*0.2)
+        # commands.setWalkVelocity(-x_diff*keep_center_gain, y_diff*keep_center_gain, -theta_diff*0.2) # TODO: put bakc
 
 
         if x_pos - rob_x > 750 or not ball.seen:
@@ -182,8 +186,8 @@ class Blocker(Node):
             commands.setHeadPan(ball.visionBearing, 0.1)
 
         # TODO: Add sit
-        if x_pos - rob_x < 250:
-            commands.setWalkVelocity(0, 0, 0)
+        # if x_pos - rob_x < 250: # TODO: put back
+            # commands.setWalkVelocity(0, 0, 0) # TODO: put back
 
         #TODO: add vision checks for lines to prevent walking too far
 
@@ -263,12 +267,13 @@ class Blocker(Node):
 class Ready(Task):
     def run(self):
        commands.stand()
-       if self.getTime() > 3.0:
-           commands.setHeadPanTilt(-math.pi / 4, -15, 0.5)
-           if self.getTime() > 8.0:
-               commands.setHeadPan(math.pi / 4, 0.5)
-               if self.getTime() > 13.0:
-                   commands.setHeadPan(0, 0.5)
+# TODO: put back
+#        if self.getTime() > 3.0:
+#            commands.setHeadPanTilt(-math.pi / 4, -15, 0.5)
+#            if self.getTime() > 8.0:
+#                commands.setHeadPan(math.pi / 4, 0.5)
+#                if self.getTime() > 13.0:
+#                    commands.setHeadPan(0, 0.5)
 
 
 # TODO: How to switch between kicking and goalie?
@@ -277,13 +282,16 @@ class Playing(LoopingStateMachine):
         blocker = Blocker()
         penalty = Penalty()
 
-        blocks = {"left": pose.BlockLeftArms(),
-                  "right": pose.BlockRightArms(),
-                  "center": pose.BlockCenterArms()
-                  }
+        blocks = {"left": pose.BlockLeft(),
+                   "right": pose.BlockRight(),
+                   "center": pose.BlockCenter()
+                   }
+        #blocks = {
+        #    "center": pose.SitBlock()
+        #}
         for name in blocks:
             b = blocks[name]
-            self.add_transition(blocker, S(name), b, T(3.25), blocker)
+            self.add_transition(blocker, S(name), b, T(100), blocker)
 
         self.add_transition(blocker, S("penalty"), penalty)
         self.add_transition(penalty, S("blocker"), blocker)

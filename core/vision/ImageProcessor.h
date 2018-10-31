@@ -60,7 +60,7 @@ Blob makeBlob(RLE* r);
 /// @ingroup vision
 class ImageProcessor {
   public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW  
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     ImageProcessor(VisionBlocks& vblocks, const ImageParams& iparams, Camera::Type camera);
     ~ImageProcessor();
     void processFrame();
@@ -82,17 +82,17 @@ class ImageProcessor {
     std::vector<BallCandidate*> getBallCandidates();
     BallCandidate* getBestBallCandidate();
     bool isImageLoaded();
-    int getParent(int idx); 
-    void mergeBlobs(int idx1, int idx2); 
-	vector<RLE*> getRLERow(int y, int width, int &start_idx); 
-	void mergeEncodings(vector<RLE*> &prev_encoding, vector<RLE*> &encoding); 
+    int getParent(int idx);
+    void mergeBlobs(int idx1, int idx2);
+	vector<RLE*> getRLERow(int y, int width, int &start_idx);
+	void mergeEncodings(vector<RLE*> &prev_encoding, vector<RLE*> &encoding);
 	void calculateBlobs();
     void detectBall();
     void findBall(int& imageX, int& imageY);
     void detectGoal();
     void findGoal(int& imageX, int& imageY);
     void detectPenaltyLine();
-    void findPenaltyLine(int& imageX, int& imageY);
+    void findPenaltyLine(int& imageX, int& imageY, int& xi, int& xf);
   private:
     int getTeamColor();
     double getCurrentTime();
@@ -101,7 +101,7 @@ class ImageProcessor {
     const ImageParams& iparams_;
     Camera::Type camera_;
     CameraMatrix cmatrix_;
-    
+
     VisionParams vparams_;
     unsigned char* color_table_;
     TextLogger* textlogger;
@@ -109,14 +109,14 @@ class ImageProcessor {
     float getHeadPan() const;
     float getHeadTilt() const;
     float getHeadChange() const;
-    
+
     std::unique_ptr<RobotCalibration> calibration_;
     bool enableCalibration_;
 
     //void saveImg(std::string filepath);
     int topFrameCounter_ = 0;
     int bottomFrameCounter_ = 0;
-    
+
     // blob store
     unordered_map<int, RLE*> rle_ptr;
     vector<Blob> detected_blobs;

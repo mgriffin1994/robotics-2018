@@ -133,6 +133,7 @@ class Sit(Task):
     elif st.inState(st.finish):
       self.finish()
 
+
 class Stand(Task):
   def reset(self):
     super(Stand, self).reset()
@@ -174,6 +175,53 @@ class Squat(Task):
     super(Squat, self).__init__(time=time)
     self.setChain([
       PoseSequence(
+
+### orig
+#         cfgpose.goalieSquatPart1, 0.4,
+#         cfgpose.goalieSquatPart2, 0.2,
+#         cfgpose.goalieSquatPart2, time,
+#         cfgpose.goalieSquat5, 0.2,
+#         cfgpose.goalieSquat5, 0.3,
+#         cfgpose.goalieSquatPart2, 0.3,
+#         cfgpose.goalieSquatGetup15, 0.4,
+#         cfgpose.goalieSquatGetup2, 0.6,
+#         cfgpose.goalieSquatGetup7, 0.3
+
+        cfgpose.goalieSquatFall, 0.4,
+        cfgpose.goalieFallSplit, 0.4,
+        cfgpose.goalieSquatGetup15, 0.3,
+        cfgpose.goalieSquatGetup2, 0.4,
+        cfgpose.goalieSquatGetup7, 0.2
+
+#         cfgpose.goalieSquatPart1, 0.4,
+#         cfgpose.goalieSquatPart2, 0.2,
+#         cfgpose.goalieSquatPart2, time,
+#         cfgpose.goalieSquat5, 1.2,
+#         cfgpose.goalieSquat5, 1.3,
+#         cfgpose.goalieSquatPart2, 1.3,
+#         cfgpose.goalieSquatGetup15, 1.4,
+#         cfgpose.goalieSquatGetup2, 1.6,
+#         cfgpose.goalieSquatGetup7, 1.3
+      ),
+      Stand()
+    ])
+
+class SitBlock(Task):
+  def __init__(self):
+    super(Squat, self).__init__(time=time)
+    self.setChain([
+      PoseSequence(
+        cfgpose.sittingPoseV3, 0.4,
+      ),
+      Stand()
+    ])
+
+
+class Squat2(Task):
+  def __init__(self, time = 3.0):
+    super(Squat, self).__init__(time=time)
+    self.setChain([
+      PoseSequence(
         cfgpose.goalieSquatPart1, 0.4,
         cfgpose.goalieSquatPart2, 0.2,
         cfgpose.goalieSquatPart2, time,
@@ -186,6 +234,15 @@ class Squat(Task):
       ),
       Stand()
     ])
+
+class BlockCenter(Task):
+  def __init__(self, time = 2.0):
+    super(BlockCenter, self).__init__(time=time)
+    self.setSubtask(PoseSequence(
+      cfgpose.sittingPoseNoArms, 1.0,
+      cfgpose.sittingPoseNoArms, time,
+      cfgpose.standingPose, 2.0
+    ))
 
 class BlockRight(Task):
   def __init__(self, time = 3.0):

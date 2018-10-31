@@ -337,23 +337,23 @@ void ImageProcessor::findPenaltyLine(int& imageX, int& imageY, int& xi, int& xf)
     if(whiteBlobs.size() > 0) {
         for(auto blob : whiteBlobs) {
             if (blob.avgY > 60 && blob.avgY < 120) {
-                double rectArea = (whiteBlobs[0].dx) * (whiteBlobs[0].dy);
-                double density = (whiteBlobs[0].lpCount / rectArea);
+                double rectArea = (blob.dx) * (blob.dy);
+                double density = (blob.lpCount / rectArea);
                 cout << "Line size: " << blob.lpCount << endl;
                 cout << "Line density: " << density << endl;
-                cout << "Blob avgY: " >> blob.avgY << endl;
+                cout << "Blob avgY: " << blob.avgY << endl;
                 if (density > LINE_DENSITY) {
-                    imageX = whiteBlobs[0].avgX;
-                    imageY = whiteBlobs[0].yf;
-                    xi = whiteBlobs[0].xi;
-                    xf = whiteBlobs[0].xf;
+                    imageX = blob.avgX;
+                    imageY = blob.yf;
+                    xi = blob.xi;
+                    xf = blob.xf;
+                    break;
                 }
                 else {
-                    // cout << "Skipping " << whiteBlobs[0].avgX << " " << whiteBlobs[0].yf << " " << density << endl;
                     imageX = -1;
                     imageY = -1;
-                    xi = whiteBlobs[0].xi;
-                    xf = whiteBlobs[0].xf;
+                    xi = blob.xi;
+                    xf = blob.xf;
                 }
             }
         }
@@ -361,8 +361,8 @@ void ImageProcessor::findPenaltyLine(int& imageX, int& imageY, int& xi, int& xf)
     else {
         imageX = -1;
         imageY = -1;
-        xi = whiteBlobs[0].xi;
-        xf = whiteBlobs[0].xf;
+        xi = -1;
+        xf = -1;
         // cout << "Line not detected" << endl;
     }
 }
