@@ -19,7 +19,7 @@ class ToPose(Task):
     self.pose = pose
     self.time = time
     self.reverse = reverse
-
+  
   def reset(self):
     super(ToPose, self).reset()
     self.first = True
@@ -93,7 +93,7 @@ class Sit(Task):
     self.lower_time = 0
 
   def run(self):
-
+        
     if self.getTime() < 2.0:
       walk_request.noWalk()
       kick_request.setNoKick()
@@ -107,7 +107,7 @@ class Sit(Task):
 
     if st.inState(st.checkarms):
       shoulderCutoff = core.DEG_T_RAD * -90
-      lpitch = core.joint_values[core.LShoulderPitch]
+      lpitch = core.joint_values[core.LShoulderPitch] 
       rpitch = core.joint_values[core.RShoulderPitch]
       if lpitch > shoulderCutoff and rpitch > shoulderCutoff:
         st.transition(st.sit)
@@ -132,7 +132,6 @@ class Sit(Task):
       st.transition(st.finish)
     elif st.inState(st.finish):
       self.finish()
-
 
 class Stand(Task):
   def reset(self):
@@ -172,55 +171,8 @@ class StandStraight(Task):
 
 class Squat(Task):
   def __init__(self, time = 3.0):
-    super(Squat, self).__init__(time=time)
-    self.setChain([
-      PoseSequence(
-
-### orig
-#         cfgpose.goalieSquatPart1, 0.4,
-#         cfgpose.goalieSquatPart2, 0.2,
-#         cfgpose.goalieSquatPart2, time,
-#         cfgpose.goalieSquat5, 0.2,
-#         cfgpose.goalieSquat5, 0.3,
-#         cfgpose.goalieSquatPart2, 0.3,
-#         cfgpose.goalieSquatGetup15, 0.4,
-#         cfgpose.goalieSquatGetup2, 0.6,
-#         cfgpose.goalieSquatGetup7, 0.3
-
-        cfgpose.goalieSquatFall, 0.4,
-        cfgpose.goalieFallSplit, 0.4,
-        cfgpose.goalieSquatGetup15, 0.3,
-        cfgpose.goalieSquatGetup2, 0.4,
-        cfgpose.goalieSquatGetup7, 0.2
-
-#         cfgpose.goalieSquatPart1, 0.4,
-#         cfgpose.goalieSquatPart2, 0.2,
-#         cfgpose.goalieSquatPart2, time,
-#         cfgpose.goalieSquat5, 1.2,
-#         cfgpose.goalieSquat5, 1.3,
-#         cfgpose.goalieSquatPart2, 1.3,
-#         cfgpose.goalieSquatGetup15, 1.4,
-#         cfgpose.goalieSquatGetup2, 1.6,
-#         cfgpose.goalieSquatGetup7, 1.3
-      ),
-      Stand()
-    ])
-
-class SitBlock(Task):
-  def __init__(self, time = 2.0):
-    super(SitBlock, self).__init__(time=time)
-    self.setChain([
-      PoseSequence(
-        cfgpose.sittingPoseV3, 0.4,
-      ),
-      Stand()
-    ])
-
-
-class Squat2(Task):
-  def __init__(self, time = 3.0):
-    super(Squat, self).__init__(time=time)
-    self.setChain([
+    super(Squat, self).__init__(self, time=time)
+    self.setChain([ 
       PoseSequence(
         cfgpose.goalieSquatPart1, 0.4,
         cfgpose.goalieSquatPart2, 0.2,
@@ -235,74 +187,75 @@ class Squat2(Task):
       Stand()
     ])
 
-class BlockCenter(Task):
-  def __init__(self, time = 2.0):
-    super(BlockCenter, self).__init__(time=time)
-    self.setSubtask(PoseSequence(
-      cfgpose.sittingPoseNoArms, 1.0,
-      cfgpose.sittingPoseNoArms, time,
-      cfgpose.standingPose, 2.0
-    ))
-
 class BlockRight(Task):
   def __init__(self, time = 3.0):
     super(BlockRight, self).__init__(time=time)
     self.setSubtask(PoseSequence(
+      cfgpose.blockright, 0.5,
       cfgpose.blockright, 1.0,
-      cfgpose.blockright, 1.0,
-      cfgpose.sittingPoseNoArms, 2.0,
+      cfgpose.sittingPoseNoArms, 1.0,
+      cfgpose.sittingPoseV3, 1.0,
       cfgpose.standingPose, 2.0
     ))
+
+  def run(self):
+    self.__init__()
 
 class BlockLeft(Task):
   def __init__(self, time = 3.0):
     super(BlockLeft, self).__init__(time=time)
     self.setSubtask(PoseSequence(
+      cfgpose.blockleft, 0.5,
       cfgpose.blockleft, 1.0,
-      cfgpose.blockleft, 1.0,
-      cfgpose.sittingPoseNoArms, 2.0,
+      cfgpose.sittingPoseNoArms, 1.0,
+      cfgpose.sittingPoseV3, 1.0,
       cfgpose.standingPose, 2.0
     ))
 
+  def run(self):
+    self.__init__()
 
-class BlockLeftArms(Task):
+
+# class BlockLeft(Task):
+#   def __init__(self, time = 1.0):
+#     super(BlockLeft, self).__init__(time=time)
+#     self.setSubtask(PoseSequence(
+#       cfgpose.armLeft, 0.25,
+#       cfgpose.armLeft, self.time, 
+#       cfgpose.sittingPoseNoArms, 1.0,
+#       cfgpose.sittingPoseV3, 1.0
+#     ))
+# 
+#   def run(self):
+#     self.__init__()
+
+
+# class BlockRight(Task):
+#   def __init__(self, time = 1.0):
+#     super(BlockRight, self).__init__(time=time)
+#     self.setSubtask(PoseSequence(
+#       cfgpose.armRight, 0.25,
+#       cfgpose.armRight, self.time, 
+#       cfgpose.sittingPoseNoArms, 1.0,
+#       cfgpose.sittingPoseV3, 1.0
+#     ))
+# 
+#   def run(self):
+#     self.__init__()
+
+
+class BlockCenter(Task):
   def __init__(self, time = 1.0):
-    super(BlockLeftArms, self).__init__(time=time)
+    super(BlockCenter, self).__init__(time=time)
     self.setSubtask(PoseSequence(
-      cfgpose.armLeft, 0.25,
-      cfgpose.armLeft, self.time,
+      cfgpose.armsForward, 0.5,
+      cfgpose.armsForward, self.time, 
       cfgpose.sittingPoseNoArms, 1.0,
-      cfgpose.sittingPoseV3, 1.0
+      cfgpose.sittingPoseV3, 1.0,
+      cfgpose.standingPose, 2.0
     ))
 
   def run(self):
     self.__init__()
 
-
-class BlockRightArms(Task):
-  def __init__(self, time = 1.0):
-    super(BlockRightArms, self).__init__(time=time)
-    self.setSubtask(PoseSequence(
-      cfgpose.armRight, 0.25,
-      cfgpose.armRight, self.time,
-      cfgpose.sittingPoseNoArms, 1.0,
-      cfgpose.sittingPoseV3, 1.0
-    ))
-
-  def run(self):
-    self.__init__()
-
-
-class BlockCenterArms(Task):
-  def __init__(self, time = 1.0):
-    super(BlockCenterArms, self).__init__(time=time)
-    self.setSubtask(PoseSequence(
-      cfgpose.armsForward, 0.25,
-      cfgpose.armsForward, self.time,
-      cfgpose.sittingPoseNoArms, 1.0,
-      cfgpose.sittingPoseV3, 1.0
-    ))
-
-  def run(self):
-    self.__init__()
 
