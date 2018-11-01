@@ -356,7 +356,8 @@ class Blocker(Node):
             #elif ball.imageCenterX > 320 - 140:
             #    self.postSignal('right')
             else: 
-                self.postSignal('right')
+                #self.postSignal('right')
+                self.postSignal('left')
 
 
 
@@ -481,7 +482,7 @@ class Playing(LoopingStateMachine):
 
         for name in blocks:
             b = blocks[name]
-            self.add_transition(blocker, S(name), b, T(4.5), blocker)
+            self.add_transition(blocker, S(name), b, T(4.25), blocker)
 
         self.add_transition(blocker, S("penalty"), penalty)
         self.add_transition(penalty, S("blocker"), blocker)

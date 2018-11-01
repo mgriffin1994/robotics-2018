@@ -187,60 +187,81 @@ class Squat(Task):
       Stand()
     ])
 
-# class BlockRight(Task):
-#   def __init__(self, time = 3.0):
-#     super(BlockRight, self).__init__(time=time)
-#     self.setSubtask(PoseSequence(
-#       cfgpose.blockright, 0.5,
-#       cfgpose.blockright, 1.0,
-#       cfgpose.sittingPoseNoArms, 1.0,
-#       cfgpose.sittingPoseV3, 1.0,
-#       cfgpose.standingPose, 2.0
-#     ))
-
-#   def run(self):
-#     self.__init__()
-
-# class BlockLeft(Task):
-#   def __init__(self, time = 3.0):
-#     super(BlockLeft, self).__init__(time=time)
-#     self.setSubtask(PoseSequence(
-#       cfgpose.blockleft, 0.5,
-#       cfgpose.blockleft, 1.0,
-#       cfgpose.sittingPoseNoArms, 1.0,
-#       cfgpose.sittingPoseV3, 1.0,
-#       cfgpose.standingPose, 2.0
-#     ))
-
-#   def run(self):
-#     self.__init__()
-
-
-
+# original block right
 class BlockRight(Task):
   def __init__(self, time = 3.0):
     super(BlockRight, self).__init__(time=time)
     self.setSubtask(PoseSequence(
-      cfgpose.blockright, 0.75,
-      cfgpose.blockright, 0.25,
+      cfgpose.blockright, 0.5,
+      cfgpose.blockright, 1.0,
       cfgpose.sittingPoseNoArms, 1.0,
       cfgpose.sittingPoseV3, 1.0,
       cfgpose.standingPose, 2.0
     ))
 
-  #def run(self):
-  #  self.__init__()
+  def run(self):
+    self.__init__()
+
+# original block left
+#class BlockLeft(Task):
+#  def __init__(self, time = 3.0):
+#    super(BlockLeft, self).__init__(time=time)
+#    self.setSubtask(PoseSequence(
+#      cfgpose.blockleft, 0.5,
+#      cfgpose.blockleft, 1.0,
+#      cfgpose.sittingPoseNoArms, 1.0,
+#      cfgpose.sittingPoseV3, 1.0,
+#      cfgpose.standingPose, 2.0
+#    ))
+#
+#  def run(self):
+#    self.__init__()
 
 class BlockLeft(Task):
   def __init__(self, time = 3.0):
     super(BlockLeft, self).__init__(time=time)
     self.setSubtask(PoseSequence(
-      cfgpose.blockleft, 0.75,
-      cfgpose.blockleft, 0.25,
-      cfgpose.sittingPoseNoArms, 0.75,
-      cfgpose.sittingPoseV3, 0.5,
-      cfgpose.standingPose, 2.0
+#      cfgpose.blockleft, 0.5,
+#      cfgpose.blockleft, 1.0,
+#      cfgpose.sittingPoseNoArms, 1.0,
+#      cfgpose.sittingPoseV3, 1.0,
+#      cfgpose.standingPose, 2.0
+      cfgpose.legSplay, 1.0,
+      cfgpose.legSplay, 2.0,
+      cfgpose.sittingPoseNoArms, 1.0,
+#      cfgpose.sittingPoseV3, 0.5,
+      cfgpose.standingPose, 0.5
     ))
+
+#  def run(self):
+#    self.__init__()
+
+
+
+#class BlockRight(Task):
+#  def __init__(self, time = 3.0):
+#    super(BlockRight, self).__init__(time=time)
+#    self.setSubtask(PoseSequence(
+#      cfgpose.blockright, 0.75,
+#      cfgpose.blockright, 0.25,
+#      cfgpose.sittingPoseNoArms, 1.0,
+#      cfgpose.sittingPoseV3, 1.0,
+#      cfgpose.standingPose, 2.0
+#    ))
+
+  #def run(self):
+  #  self.__init__()
+
+#class BlockLeft(Task):
+#  def __init__(self, time = 3.0):
+#    super(BlockLeft, self).__init__(time=time)
+#    self.setSubtask(PoseSequence(
+#      cfgpose.blockleft, 0.75,
+#      cfgpose.blockleft, 0.25,
+#      cfgpose.sittingPoseNoArms, 0.75,
+#      cfgpose.sittingPoseV3, 0.5,
+#      cfgpose.standingPose, 2.0
+#    ))
 
   #def run(self):
   #  self.__init__()
