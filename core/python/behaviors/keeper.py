@@ -268,7 +268,7 @@ num_samples = 10
 #vision_center_thresh = 50
 rescan = 100 #every 2 secs at 100Hz
 
-vision_center_thresh = 40
+vision_center_thresh = 20
 keep_center_gain = 0.007
 image_center_x = 160
 image_center_y = 120
