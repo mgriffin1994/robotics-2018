@@ -98,8 +98,8 @@ void ButtonModule::processCenterPresses() {
   }
   if (center_.presses == 4) {
     // always transition to finished
-    game_state_->setState(SET);
-    speech_->say("set");
+    game_state_->setState(PLAYING);
+    speech_->say("playing");
   } else if (center_.presses == 5) {
     game_state_->setState(FINISHED);
   } else if (center_.presses == 6) {

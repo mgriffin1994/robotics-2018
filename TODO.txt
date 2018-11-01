@@ -1,0 +1,7 @@
+- Keeper
+    - Stay inside box
+    - Don't stay down more than five seconds
+    - NO BLOCKS!
+    - Fix Kalman (left arm doesn't really block)
+
+- Check button pressing switches behaviors

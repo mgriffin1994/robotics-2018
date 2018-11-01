@@ -82,7 +82,7 @@ class ApproachBall(Node):
         ### Grab the ball and goal world objects
         ball = mem_objects.world_objects[core.WO_BALL]
         goal = mem_objects.world_objects[core.WO_UNKNOWN_GOAL]
-	line = mem_objects.world_objects[core.WO_OWN_PENALTY]
+        line = mem_objects.world_objects[core.WO_OWN_PENALTY]
 
         ### Tilt the head so we can see more
         commands.setHeadTilt(-18)
@@ -123,12 +123,12 @@ class ApproachBall(Node):
                 print('line seen but no kick yet')
                 self.line_seen_counter += 1
 
-	    if line.seen and self.line_seen_counter > 5 and abs(x_error_avg) < x_error_thresh and abs(theta_error_avg) < theta_error_thresh:
-		print('SAW LINE and in range and ball aligned. STOPPED')
-		commands.kick()
-		kick_executed = True
-		self.start_kick_frame = self.getFrames()
-		return
+        if line.seen and self.line_seen_counter > 5 and abs(x_error_avg) < x_error_thresh and abs(theta_error_avg) < theta_error_thresh:
+            print('SAW LINE and in range and ball aligned. STOPPED')
+            commands.kick()
+            kick_executed = True
+            self.start_kick_frame = self.getFrames()
+            return
 
             # TODO: another measure to detect when to stop if got too close to line
 
@@ -172,8 +172,8 @@ class ApproachBall(Node):
                 print('---------- TIME RAN OUT ----------')
                 commands.kick()
                 kick_executed = True
-		self.start_kick_frame = self.getFrames()
-		return
+                self.start_kick_frame = self.getFrames()
+                return
 
             ### Compute velocities
             prev_x_avg = sum(self.x_errors[-1-moving_avg_samples:-1]) / moving_avg_samples
