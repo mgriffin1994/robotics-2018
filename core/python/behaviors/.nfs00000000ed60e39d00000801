@@ -11,7 +11,6 @@ import pose
 import cfgstiff
 from state_machine import Node, S, T, LoopingStateMachine
 from memory import joint_commands, localization_mem, robot_state, game_state
-import memory
 from task import Task
 import UTdebug
 import math
@@ -48,7 +47,7 @@ slow_dribble_speed = 0.30
 ball_distance_close = 20 #50
 ball_right_foot = 0.67
 
-max_time_kick = 85
+max_time_kick = 80
 
 class ApproachBall(Node):
 
@@ -124,12 +123,12 @@ class ApproachBall(Node):
                 print('line seen but no kick yet')
                 self.line_seen_counter += 1
 
-            if line.seen and self.line_seen_counter > 5 and abs(x_error_avg) < x_error_thresh and abs(theta_error_avg) < theta_error_thresh:
-                print('SAW LINE and in range and ball aligned. STOPPED')
-                commands.kick()
-                kick_executed = True
-                self.start_kick_frame = self.getFrames()
-                return
+        if line.seen and self.line_seen_counter > 5 and abs(x_error_avg) < x_error_thresh and abs(theta_error_avg) < theta_error_thresh:
+            print('SAW LINE and in range and ball aligned. STOPPED')
+            commands.kick()
+            kick_executed = True
+            self.start_kick_frame = self.getFrames()
+            return
 
             # TODO: another measure to detect when to stop if got too close to line
 
