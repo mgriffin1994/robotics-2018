@@ -78,23 +78,24 @@ void ParticleFilter::processFrame() {
 
   dirty_ = true;
 
-/*  static map<WorldObjectType, Point2D> beacon_locs = {
-        { WO_BEACON_BLUE_YELLOW,    Point2D(1500, 1000) },
-        { WO_BEACON_YELLOW_BLUE,    Point2D(1500, -1000) },
-        { WO_BEACON_BLUE_PINK,      Point2D(0, 1000) },
-        { WO_BEACON_PINK_BLUE,      Point2D(0, -1000) },
-        { WO_BEACON_PINK_YELLOW,    Point2D(-1500, 1000) },
-        { WO_BEACON_YELLOW_PINK,    Point2D(-1500, -1000) }
-    };*/
+  static map<WorldObjectType, Point2D> beacon_locs = {
+      { WO_BEACON_BLUE_YELLOW,    Point2D(1500, 1000) },
+      { WO_BEACON_YELLOW_BLUE,    Point2D(1500, -1000) },
+      { WO_BEACON_BLUE_PINK,      Point2D(0, 1000) },
+      { WO_BEACON_PINK_BLUE,      Point2D(0, -1000) },
+      { WO_BEACON_PINK_YELLOW,    Point2D(-1500, 1000) },
+      { WO_BEACON_YELLOW_PINK,    Point2D(-1500, -1000) }
+  };
 
-    static map<WorldObjectType, Point2D> beacon_locs = {
-        { WO_BEACON_BLUE_YELLOW,    Point2D(500, 1000) },
-        { WO_BEACON_YELLOW_BLUE,    Point2D(500, 1000) },
-        { WO_BEACON_BLUE_PINK,      Point2D(0, -1000) },
-        { WO_BEACON_PINK_BLUE,      Point2D(0, -1000) },
-        { WO_BEACON_PINK_YELLOW,    Point2D(-500, 1000) },
-        { WO_BEACON_YELLOW_PINK,    Point2D(-500, 1000) }
-    };
+  // Penalty kick beacon positions
+  // static map<WorldObjectType, Point2D> beacon_locs = {
+  //     { WO_BEACON_BLUE_YELLOW,    Point2D(500, 1000) },
+  //     { WO_BEACON_YELLOW_BLUE,    Point2D(500, 1000) },
+  //     { WO_BEACON_BLUE_PINK,      Point2D(0, -1000) },
+  //     { WO_BEACON_PINK_BLUE,      Point2D(0, -1000) },
+  //     { WO_BEACON_PINK_YELLOW,    Point2D(-500, 1000) },
+  //     { WO_BEACON_YELLOW_PINK,    Point2D(-500, 1000) }
+  // };
 
   // Retrieve odometry update - how do we integrate this into the filter?
   const auto& disp = cache_.odometry->displacement;

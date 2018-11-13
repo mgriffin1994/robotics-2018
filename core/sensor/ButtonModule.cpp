@@ -55,6 +55,7 @@ void ButtonModule::processButtons() {
 
   if (head_middle_.new_result) {
     camera_->calibrate_white_balance_ = !camera_->calibrate_white_balance_;
+    game_state_->isPenaltyKick = (not game_state_->isPenaltyKick);
     std::cout << "Head touched" << std::endl;
     head_middle_.reset();
   }

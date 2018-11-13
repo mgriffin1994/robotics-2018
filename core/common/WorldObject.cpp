@@ -28,6 +28,7 @@ WorldObject::WorldObject() {
   fromTopCamera = false;
 
   occluded = false;
+  beacon_height=-1;
 }
 
 WorldObject::WorldObject(WorldObjectType type) : WorldObject() {

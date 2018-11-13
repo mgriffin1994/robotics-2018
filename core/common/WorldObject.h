@@ -412,6 +412,9 @@ DECLARE_INTERNAL_SCHEMA(class WorldObject {
     SCHEMA_FIELD(bool fromTopCamera); ///< True if observed from top cam, false if from bottom
 
     SCHEMA_FIELD(bool occluded); ///< Detect if ball is occluded
+
+    // NAOSAMI Beacon heights
+    SCHEMA_FIELD(int beacon_height);
 });
 
 typedef std::vector<WorldObject> ObjectSet;

@@ -227,6 +227,7 @@ void BeaconDetector::findBeacons(vector<Blob> &blobs) {
         double bdistance = (cmatrix_.getWorldDistanceByWidth(bwidth, 110.0) + cmatrix_.getWorldDistanceByHeight(bheight, 100.0)) / 2.0;
 
         auto position = cmatrix_.getWorldPosition(object.imageCenterX, object.imageCenterY, heights[beacon.first]);
+        object.beacon_height = (int) bheight * 2;
         object.visionDistance = bdistance;
         object.visionBearing = cmatrix_.bearing(position);
         object.seen = true;
