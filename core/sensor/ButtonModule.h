@@ -57,6 +57,8 @@ class ButtonModule: public Module {
   ButtonInfo left_bumper_;
   ButtonInfo right_bumper_;
   ButtonInfo head_middle_;
+  ButtonInfo head_front_;
+  ButtonInfo head_rear_;
 
  private:
   void processCenterPresses();

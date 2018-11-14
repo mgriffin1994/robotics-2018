@@ -18,7 +18,9 @@ ButtonModule::ButtonModule():
   center_(true),
   left_bumper_(false),
   right_bumper_(false),
-  head_middle_(false)
+  head_middle_(false),
+  head_front_(false),
+  head_rear_(false)
 {
 }
 
@@ -47,17 +49,21 @@ void ButtonModule::processButtons() {
   processButton(sensors_->values_[bumperRL], sensors_->values_[bumperRR],right_bumper_);
   processButton(sensors_->values_[bumperLL], sensors_->values_[bumperLR],left_bumper_);
   processButton(sensors_->values_[headMiddle], 0, head_middle_);
+  processButton(sensors_->values_[headFront], 0, head_front_);
+  processButton(sensors_->values_[headRear], 0, head_rear_);
 
   if (center_.new_result) {
     processCenterPresses();
     center_.reset();
   }
 
-  if (head_middle_.new_result) {
+  if (head_middle_.new_result | head_front_.new_result | head_rear_.new_result) {
     camera_->calibrate_white_balance_ = !camera_->calibrate_white_balance_;
-    game_state_->isPenaltyKick = (not game_state_->isPenaltyKick);
+    game_state_->isPenaltyKick = true;
     std::cout << "Head touched" << std::endl;
     head_middle_.reset();
+    head_front_.reset();
+    head_rear_.reset();
   }
 
   if (right_bumper_.new_result) {
