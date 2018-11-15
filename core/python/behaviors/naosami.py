@@ -12,7 +12,7 @@ import cfgstiff
 from task import Task
 import mem_objects
 from state_machine import Node, C, T, LoopingStateMachine
-from memory import localization_mem, game_state
+from memory import localization_mem, game_state, robot_state
 import core
 import numpy as np
 
@@ -20,6 +20,10 @@ beacon_data = []
 a = [-1/2, -1/6, 0, 1/6, 1/2]
 b = [-math.pi, -3*math.pi/4, -math.pi/2, -math.pi/4, 0, 
       math.pi/4, math.pi/2, 3*math.pi/4, math.pi]
+edge_thresh = 150
+theta_thresh = 0.5
+field_x = 1500
+field_y = 1000
 
 np.random.seed(42)
 
@@ -38,6 +42,35 @@ def get_vels():
     vy /= norm
     vt /= norm
 
+    # rob = mem_objects.world_objects[robot_state.WO_SELF]
+    # rob_x = rob.loc.x
+    # rob_y = rob.loc.y
+    # rob_t = rob.orientation
+
+    # if rob_x < -field_x + edge_thresh: 
+    #     if abs(rob_t) < theta_thresh:
+    #         return 1/6, 0, 0
+    #     if abs(rob_t) - math.pi < theta_thresh:
+    #         return -1/6, 0, 0
+    #     
+    # if rob_x > field_x - edge_thresh:
+    #     if abs(rob_t) < theta_thresh:
+    #         return -1/6, 0, 0
+    #     if abs(rob_t) - math.pi < theta_thresh:
+    #         return 1/6, 0, 0
+
+    # if rob_y < -field_y + edge_thresh:
+    #     if rob_t b math.pi/2 < theta_thresh:
+    #         return -1/6, 0, 0
+    #     if rob_t + math.pi/2 < theta_thresh:
+    #         return 1/6, 0, 0
+    #     
+    # if rob_y > field_y - edge_thresh:
+    #     if rob_t - math.pi/2 < theta_thresh:
+    #         return 1/6, 0, 0
+    #     if rob_t + math.pi/2 < theta_thresh:
+    #         return -1/6, 0, 0
+
     return vx, vy, vt
 
 class NewAction(Node):
@@ -53,6 +86,7 @@ class NewAction(Node):
         self.frames_count += 1
 
         self.start_scan = self.frames_count if self.start_scan == -1 else self.start_scan
+        commands.setHeadTilt(-15)
         commands.setHeadPan(-math.pi / 5, 0.40)
         if self.frames_count - self.start_scan > 20: #0.5 sec at 100Hz (min 10)
             commands.setHeadPan(math.pi / 5, 0.40)
@@ -85,7 +119,12 @@ class NewAction(Node):
                 else:
                     vels.extend([None, None])
 
-            beacon_data.append(vels)
+            # beacon_data.append(vels)
+
+            with open("beacon_data.txt", "a+") as f:
+                np_data = np.array(vels, dtype=float)
+                np.savetxt(f, np_data)
+
             self.vels = []
             if self.getTime() > 5.0:
                 self.done_walked = False
@@ -108,6 +147,13 @@ class Playing(LoopingStateMachine):
 
         # self.add_transition(stand, C, new_action)
         self.add_transition(new_action, C, new_action)
+
+class Ready(Task):
+    def run(self):
+        commands.setStiffness()
+        commands.stand()
+        if self.getTime() > 3.0:
+            self.finish()
 
 class Testing(Task):
     def __init__(self):
