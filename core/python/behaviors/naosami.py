@@ -15,10 +15,12 @@ from state_machine import Node, C, T, LoopingStateMachine
 from memory import localization_mem, game_state, robot_state
 import core
 import numpy as np
+import os
+import copy
 
 beacon_data = []
 a = [-1/2, -1/6, 0, 1/6, 1/2]
-b = [-math.pi, -3*math.pi/4, -math.pi/2, -math.pi/4, 0, 
+b = [-math.pi, -3*math.pi/4, -math.pi/2, -math.pi/4, 0,
       math.pi/4, math.pi/2, 3*math.pi/4, math.pi]
 edge_thresh = 150
 theta_thresh = 0.5
@@ -47,12 +49,12 @@ def get_vels():
     # rob_y = rob.loc.y
     # rob_t = rob.orientation
 
-    # if rob_x < -field_x + edge_thresh: 
+    # if rob_x < -field_x + edge_thresh:
     #     if abs(rob_t) < theta_thresh:
     #         return 1/6, 0, 0
     #     if abs(rob_t) - math.pi < theta_thresh:
     #         return -1/6, 0, 0
-    #     
+    #
     # if rob_x > field_x - edge_thresh:
     #     if abs(rob_t) < theta_thresh:
     #         return -1/6, 0, 0
@@ -64,7 +66,7 @@ def get_vels():
     #         return -1/6, 0, 0
     #     if rob_t + math.pi/2 < theta_thresh:
     #         return 1/6, 0, 0
-    #     
+    #
     # if rob_y > field_y - edge_thresh:
     #     if rob_t - math.pi/2 < theta_thresh:
     #         return 1/6, 0, 0
@@ -75,7 +77,7 @@ def get_vels():
 
 class NewAction(Node):
     def __init__(self):
-        super(NewAction, self).__init__()            
+        super(NewAction, self).__init__()
         self.done_walked = False
         self.start_scan = -1
         self.frames_count = 0
@@ -94,15 +96,14 @@ class NewAction(Node):
                 self.start_scan = -1
 
         if not state.isPenaltyKick:
-            vx, vy, vt = get_vels()
 
             if not self.done_walked:
+                vx, vy, vt = get_vels()
                 commands.setWalkVelocity(vx, vy, vt)
                 self.past_vels = [vx, vy, vt]
-                print(vx, vy, vt)
                 self.done_walked = True
 
-            vels = self.past_vels
+            vels = copy.deepcopy(self.past_vels)
 
             beacon1 = mem_objects.world_objects[core.WO_BEACON_BLUE_YELLOW]
             beacon2 = mem_objects.world_objects[core.WO_BEACON_YELLOW_BLUE]
@@ -114,18 +115,19 @@ class NewAction(Node):
             beacons = {beacon1, beacon2, beacon3, beacon4, beacon5, beacon6}
             for i, beacon in enumerate(beacons):
                 if beacon.seen:
-                    print('beacon', i, beacon.visionDistance, 'mm')
-                    vels.extend([beacon.beacon_height, beacon.visionBearing])
+#                     print('beacon', i, beacon.visionDistance, 'mm')
+                    vels.extend([beacon.beacon_height, beacon.visionBearing, beacon.visionDistance])
                 else:
-                    vels.extend([None, None])
+                    vels.extend([None, None, None])
 
-            # beacon_data.append(vels)
+#             print(vels)
+#             print("===\n")
 
             with open("beacon_data.txt", "a+") as f:
                 np_data = np.array(vels, dtype=float)
                 np.savetxt(f, np_data)
+                f.write("====\n")
 
-            self.vels = []
             if self.getTime() > 5.0:
                 self.done_walked = False
                 self.finish()
@@ -152,16 +154,10 @@ class Ready(Task):
     def run(self):
         commands.setStiffness()
         commands.stand()
+        try:
+            os.remove("beacon_data.txt")
+        except OSError:
+            pass
         if self.getTime() > 3.0:
             self.finish()
 
-class Testing(Task):
-    def __init__(self):
-        super(Testing, self).__init__()            
-        self.done_printed = False
-
-    def run(self):
-        if not self.done_printed:
-            np_data = np.array(beacon_data, dtype=float)
-            np.savetxt("beacon_data.txt", np_data)
-            self.done_printed = True
