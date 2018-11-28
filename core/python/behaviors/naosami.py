@@ -126,7 +126,7 @@ class NewAction(Node):
             with open("beacon_data.txt", "a+") as f:
                 np_data = np.array(vels, dtype=float)
                 np.savetxt(f, np_data)
-                f.write("====\n")
+#                 f.write("====\n")
 
             if self.getTime() > 5.0:
                 self.done_walked = False
