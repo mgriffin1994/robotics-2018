@@ -26,6 +26,8 @@ beacon_locs = np.array(
      [-1400, 950],
      [-1400, -950]]
 )
+EPOCHS = 150
+DATA_FILE = "beacon_data.npz"
 
 def distance(state, beacon_index):
     return np.linalg.norm(state[:2] - beacon_locs[beacon_index])
@@ -121,6 +123,7 @@ def EKFS(obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2):
     alpha_cov[0] = sigma_prime
 
     #ForwardPass
+    # TODO: Discard observations?
     for t in range(n):
         action = act_matrix[t]
         A = gen_A(mu_prime[2], action, action_table)
@@ -261,58 +264,101 @@ def sensor_train(obs_matrix, mu_gamma, sigma_gamma, ns):
 
 def action_train(L, mu_zeta, sigma_zeta, m, act_matrix, action_table):
     for action in action_table:
-        # TODO: Check this ho
-        act_indices = np.where(act_matrix == action)
+        act_indices = np.nonzero(np.all(act_matrix == action, axis=1))[0]
 
         # Get all L, mus, sigmas, for timesteps
         Ls = L[act_indices]
-        mus = L[act_indices]
-        sigmas = L[act_indices]
+        mus = mu_zeta[act_indices]
+        sigmas = sigma_zeta[act_indices]
+        ms = m[act_indices]
 
         # Get previous mu_a for this action
         mu_a = action_table[action]
+        mu_a_prime = np.zeros_like(mu_a)
+        Q = get_Q()
 
         # Calculate new mu_a
-        mu_a = "HELPME"
+        for index, act in enumerate(act_matrix[act_indices]):
+            L_t = Ls[index]
+            sigma_t = sigmas[index]
+            mu_t = mus[index]
+            mu_a_prime += mu_a + 
+                Q.dot(pinv(Q + L_t.dot(sigma_t.dot(L_t.T))).dot(L_t.dot(mu_t) + ms[index] - mu_a)
+        mu_a_prime /= len(act_indices)
 
         # Change action table for this slot with mu_a
-        action_table[action] = mu_a
+        action_table[action] = mu_a_prime
 
     return action_table
 
-def EM(obs_matrix, act_matrix, model_params, action_table):
+def get_action_table():
+    a = [-1/2, -1/6, 0, 1/6, 1/2]
+    b = [-3*math.pi/4, -math.pi/2, -math.pi/4, 0,
+          math.pi/4, math.pi/2, 3*math.pi/4, math.pi]
+    action_table = dict()
+    actions = list(product(a, b))
+    for v_a, v_b in actions:
+        vt = v_a
+        vx = cos(v_b) * math.sqrt(1 - vt**2)
+        vy = sin(v_b) * math.sqrt(1 - vt**2)
+        action_table[(vx, vy, vt)] = np.zeros((3, 1))
+    return action_table
+
+def get_model_params():
+    # NOTE: Taken from paper for faster convergence
+    return np.array([50, -0.01, 0, 0])
+
+def EM(obs_matrix, act_matrix, num_epochs):
     n = obs_matrix.shape[0]
-    sigma_1, sigma_2 = 0, 0
+    # NOTE: Taken from paper for faster convergence
+    sigma_1, sigma_2 = 10, 0.2
     ns = 1
 
-    # E-step
-    alpha, alpha_cov, beta, beta_cov, delta, delta_cov = 
-        EKFS(obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2):
+    action_table = get_action_table()
+    model_params = get_model_params()
 
-    mu_gamma = np.zeros((n, 3))
-    sigma_gamma = np.zeros((n, 3, 3))
+    for _ in range(num_epochs):
+        # E-step
+        alpha, alpha_cov, beta, beta_cov, delta, delta_cov = 
+            EKFS(obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2):
 
-    mu_zeta = np.zeros((n, 6))
-    sigma_zeta = np.zeros((n, 6, 6))
-    L = np.zeros((n, 3, 6))
-    m = np.zeros((n, 3))
+        mu_gamma = np.zeros((n, 3))
+        sigma_gamma = np.zeros((n, 3, 3))
 
-    for t in range(n):
-        # Construct gammas
-        mu_gamma[t] = pinv(pinv(alpha_cov[t]) + pinv(beta_cov[t])).dot(pinv(alpha_cov[t]).dot(alpha[t]) + pinv(beta_cov[t]).dot(beta[t]))
-        sigma_gamma[t] = pinv(pinv(alpha_cov[t]) + pinv(beta_cov[t]))
+        mu_zeta = np.zeros((n, 6))
+        sigma_zeta = np.zeros((n, 6, 6))
+        L = np.zeros((n, 3, 6))
+        m = np.zeros((n, 3))
 
-        # Construct zetas
-        mu_zeta[t] = np.concatenate(alpha[t], delta[t], axis=None)
-        sigma_zeta[t][:3,:3] = alpha_cov[t]
-        sigma_zeta[t][3:,3:] = delta_cov[t]
+        for t in range(n):
+            # Construct gammas
+            mu_gamma[t] = pinv(pinv(alpha_cov[t]) + pinv(beta_cov[t])).dot(pinv(alpha_cov[t]).dot(alpha[t]) + pinv(beta_cov[t]).dot(beta[t]))
+            sigma_gamma[t] = pinv(pinv(alpha_cov[t]) + pinv(beta_cov[t]))
 
-        # Linearize D
-        L[t] = get_L(mu_zeta[t])
-        m[t] = D(mu_zeta[t]) - L[t].dot(mu_zeta[t])
+            # Construct zetas
+            mu_zeta[t] = np.concatenate(alpha[t], delta[t], axis=None)
+            sigma_zeta[t][:3,:3] = alpha_cov[t]
+            sigma_zeta[t][3:,3:] = delta_cov[t]
 
-    # M-step
-    # Sensor model
-    model_params, sigma_1, sigma_2 = sensor_train(obs_matrix, mu_gamma, sigma_gamma, ns)
+            # Linearize D
+            L[t] = get_L(mu_zeta[t])
+            m[t] = D(mu_zeta[t]) - L[t].dot(mu_zeta[t])
 
-    # Action model
+        # M-step
+        # Sensor model
+        model_params, sigma_1, sigma_2 = sensor_train(obs_matrix, mu_gamma, sigma_gamma, ns)
+
+        # Action model
+        action_table = action_train(L, mu_zeta, sigma_zeta, m, act_matrix, action_table)
+
+    return action_table, model_params, sigma_1, sigma_2
+
+def get_data(data_file):
+    data = np.load(data_file)
+    act_matrix = data['actions']
+    obs_matrix = data['observations']
+    return act_matrix, obs_matrix
+
+def main():
+    act_matrix, obs_matrix = get_data(NP_DATA_FILE)
+    action_table, model_params, sigma_1, sigma_2 = EM(obs_matrix, act_matrix, EPOCHS)

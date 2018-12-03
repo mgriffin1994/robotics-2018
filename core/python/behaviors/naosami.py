@@ -20,7 +20,7 @@ import copy
 
 beacon_data = []
 a = [-1/2, -1/6, 0, 1/6, 1/2]
-b = [-math.pi, -3*math.pi/4, -math.pi/2, -math.pi/4, 0,
+b = [-3*math.pi/4, -math.pi/2, -math.pi/4, 0,
       math.pi/4, math.pi/2, 3*math.pi/4, math.pi]
 edge_thresh = 150
 theta_thresh = 0.5
@@ -35,14 +35,9 @@ def get_vels():
     rand_a = a[a_ind]
     rand_b = b[b_ind]
 
-    vx = math.cos(rand_b)
-    vy = math.sin(rand_b)
     vt = rand_a
-
-    norm = vx**2 + vy**2 + vt**2
-    vx /= norm
-    vy /= norm
-    vt /= norm
+    vx = math.cos(rand_b) * math.sqrt(1 - vt**2)
+    vy = math.sin(rand_b) * math.sqrt(1 - vt**2)
 
     # rob = mem_objects.world_objects[robot_state.WO_SELF]
     # rob_x = rob.loc.x
@@ -89,9 +84,9 @@ class NewAction(Node):
 
         self.start_scan = self.frames_count if self.start_scan == -1 else self.start_scan
         commands.setHeadTilt(-15)
-        commands.setHeadPan(-math.pi / 5, 0.40)
-        if self.frames_count - self.start_scan > 20: #0.5 sec at 100Hz (min 10)
-            commands.setHeadPan(math.pi / 5, 0.40)
+        commands.setHeadPan(-math.pi / 5, 1.0)
+        if self.frames_count - self.start_scan > 30: #0.5 sec at 100Hz (min 10)
+            commands.setHeadPan(math.pi / 5, 1.0)
             if self.frames_count - self.start_scan > 60: #0.5 sec at 100Hz
                 self.start_scan = -1
 
@@ -112,13 +107,13 @@ class NewAction(Node):
             beacon5 = mem_objects.world_objects[core.WO_BEACON_PINK_YELLOW]
             beacon6 = mem_objects.world_objects[core.WO_BEACON_YELLOW_PINK]
 
-            beacons = {beacon1, beacon2, beacon3, beacon4, beacon5, beacon6}
+            beacons = [beacon1, beacon2, beacon3, beacon4, beacon5, beacon6]
             for i, beacon in enumerate(beacons):
                 if beacon.seen:
 #                     print('beacon', i, beacon.visionDistance, 'mm')
-                    vels.extend([beacon.beacon_height, beacon.visionBearing, beacon.visionDistance])
+                    vels.extend([beacon.beacon_height, beacon.visionBearing])
                 else:
-                    vels.extend([None, None, None])
+                    vels.extend([None, None])
 
 #             print(vels)
 #             print("===\n")
