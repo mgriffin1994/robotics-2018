@@ -26,54 +26,45 @@ edge_thresh = 150
 theta_thresh = 0.5
 field_x = 1500
 field_y = 1000
+forward_x = np.arange(1, 6)
+backward_x = np.array([0, 6, 7])
 
 np.random.seed(42)
 
-def get_vels():
-    a_ind = np.random.randint(0, len(a) - 1)
-    b_ind = np.random.randint(0, len(b) - 1)
-    rand_a = a[a_ind]
-    rand_b = b[b_ind]
+def get_vels(past_vels, vel_type=None):
+    vel_choices = np.arange(len(b) - 1)
+    if vel_type == "front":
+        vel_choices = forward_x
+    elif vel_type == "rear":
+        vel_choices = backward_x
 
-    vt = rand_a
-    vx = math.cos(rand_b) * math.sqrt(1 - vt**2)
-    vy = math.sin(rand_b) * math.sqrt(1 - vt**2)
+    if past_vels:
+        vx, vy, vt = past_vels
+        check = [vx, vy, vt]
+    else:
+        check = []
 
-    # rob = mem_objects.world_objects[robot_state.WO_SELF]
-    # rob_x = rob.loc.x
-    # rob_y = rob.loc.y
-    # rob_t = rob.orientation
+    while check == past_vels:
+        a_ind = np.random.randint(0, len(a) - 1)
+        np.random.shuffle(vel_choices)
+        b_ind = vel_choices[0]
 
-    # if rob_x < -field_x + edge_thresh:
-    #     if abs(rob_t) < theta_thresh:
-    #         return 1/6, 0, 0
-    #     if abs(rob_t) - math.pi < theta_thresh:
-    #         return -1/6, 0, 0
-    #
-    # if rob_x > field_x - edge_thresh:
-    #     if abs(rob_t) < theta_thresh:
-    #         return -1/6, 0, 0
-    #     if abs(rob_t) - math.pi < theta_thresh:
-    #         return 1/6, 0, 0
+        rand_a = a[a_ind]
+        rand_b = b[b_ind]
 
-    # if rob_y < -field_y + edge_thresh:
-    #     if rob_t b math.pi/2 < theta_thresh:
-    #         return -1/6, 0, 0
-    #     if rob_t + math.pi/2 < theta_thresh:
-    #         return 1/6, 0, 0
-    #
-    # if rob_y > field_y - edge_thresh:
-    #     if rob_t - math.pi/2 < theta_thresh:
-    #         return 1/6, 0, 0
-    #     if rob_t + math.pi/2 < theta_thresh:
-    #         return -1/6, 0, 0
+        vt = rand_a
+        vx = math.cos(rand_b) * math.sqrt(1 - vt**2)
+        vy = math.sin(rand_b) * math.sqrt(1 - vt**2)
+
+        check = [vx, vy, vt]
+        vel_choices = np.arange(len(b) - 1)
 
     return vx, vy, vt
 
 class NewAction(Node):
     def __init__(self):
         super(NewAction, self).__init__()
-        self.done_walked = False
+        self.choose_new_action = True
         self.start_scan = -1
         self.frames_count = 0
         self.past_vels = []
@@ -90,46 +81,62 @@ class NewAction(Node):
             if self.frames_count - self.start_scan > 60: #0.5 sec at 100Hz
                 self.start_scan = -1
 
-        if not state.isPenaltyKick:
+        if self.choose_new_action:
+            # Front ~ ourKickOff
+            if state.ourKickOff:
+                print("Choosing forward velocity")
+                vx, vy, vt = get_vels(self.past_vels, vel_type="front")
+                state.ourKickOff = False
+            # Rear ~ isFreeKick
+            elif state.isFreeKick:
+                print("Choosing backward velocity")
+                vx, vy, vt = get_vels(self.past_vels, vel_type="rear")
+                state.isFreeKick = False
+            # Middle ~ isPenaltyKick
+            elif state.isPenaltyKick:
+                vx, vy, vt = get_vels(self.past_vels)
+                state.isPenaltyKick = False
+            # Time ran out
+            else:
+                vx, vy, vt = get_vels(self.past_vels)
 
-            if not self.done_walked:
-                vx, vy, vt = get_vels()
-                commands.setWalkVelocity(vx, vy, vt)
-                self.past_vels = [vx, vy, vt]
-                self.done_walked = True
+            print(vx, vy, vt)
 
-            vels = copy.deepcopy(self.past_vels)
+            commands.setWalkVelocity(vx, vy, vt)
+            self.past_vels = [vx, vy, vt]
+            self.choose_new_action = False
 
-            beacon1 = mem_objects.world_objects[core.WO_BEACON_BLUE_YELLOW]
-            beacon2 = mem_objects.world_objects[core.WO_BEACON_YELLOW_BLUE]
-            beacon3 = mem_objects.world_objects[core.WO_BEACON_BLUE_PINK]
-            beacon4 = mem_objects.world_objects[core.WO_BEACON_PINK_BLUE]
-            beacon5 = mem_objects.world_objects[core.WO_BEACON_PINK_YELLOW]
-            beacon6 = mem_objects.world_objects[core.WO_BEACON_YELLOW_PINK]
+        vels = copy.deepcopy(self.past_vels)
 
-            beacons = [beacon1, beacon2, beacon3, beacon4, beacon5, beacon6]
-            for i, beacon in enumerate(beacons):
-                if beacon.seen:
+        beacon1 = mem_objects.world_objects[core.WO_BEACON_BLUE_YELLOW]
+        beacon2 = mem_objects.world_objects[core.WO_BEACON_YELLOW_BLUE]
+        beacon3 = mem_objects.world_objects[core.WO_BEACON_BLUE_PINK]
+        beacon4 = mem_objects.world_objects[core.WO_BEACON_PINK_BLUE]
+        beacon5 = mem_objects.world_objects[core.WO_BEACON_PINK_YELLOW]
+        beacon6 = mem_objects.world_objects[core.WO_BEACON_YELLOW_PINK]
+
+        beacons = [beacon1, beacon2, beacon3, beacon4, beacon5, beacon6]
+        for i, beacon in enumerate(beacons):
+            if beacon.seen:
 #                     print('beacon', i, beacon.visionDistance, 'mm')
-                    vels.extend([beacon.beacon_height, beacon.visionBearing])
-                else:
-                    vels.extend([None, None])
+                vels.extend([beacon.beacon_height, beacon.visionBearing])
+            else:
+                vels.extend([None, None])
 
 #             print(vels)
 #             print("===\n")
 
-            with open("beacon_data.txt", "a+") as f:
-                np_data = np.array(vels, dtype=float)
-                np.savetxt(f, np_data)
+        with open("beacon_data.txt", "a+") as f:
+            np_data = np.array(vels, dtype=float)
+            np.savetxt(f, np_data)
 #                 f.write("====\n")
 
-            if self.getTime() > 5.0:
-                self.done_walked = False
-                self.finish()
-        else:
-            state.isPenaltyKick = False
-            self.done_walked = False
+        if self.getTime() > 5.0:
+            self.choose_new_action = True
             self.finish()
+
+        if (state.isPenaltyKick or state.ourKickOff or state.isFreeKick):
+            self.choose_new_action = True
 
 class Playing(LoopingStateMachine):
     class Stand(Node):
