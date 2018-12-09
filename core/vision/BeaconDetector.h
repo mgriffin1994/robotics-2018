@@ -2,10 +2,12 @@
 
 #include <vision/ObjectDetector.h>
 
-#define ASPECT_RATIO_LOW_BOUND 0.75
-#define ASPECT_RATIO_HIGH_BOUND 1.25
+// Original values: 0.75, 1.25
+#define ASPECT_RATIO_LOW_BOUND 0.55
+#define ASPECT_RATIO_HIGH_BOUND 1.45
 #define OCCLUDED_ASPECT_RATIO_HIGH_BOUND 0.85
-#define DENSITY_LOW_BOUND 0.4
+// Original value: 0.4
+#define DENSITY_LOW_BOUND 0.3
 
 // #define ENABLE_AREA_SIM_FILTERING
 #define AREA_SIM_LOW_BOUND 0.4

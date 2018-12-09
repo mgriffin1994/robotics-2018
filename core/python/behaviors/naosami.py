@@ -28,6 +28,8 @@ field_x = 1500
 field_y = 1000
 forward_x = np.arange(1, 6)
 backward_x = np.array([0, 6, 7])
+beacons_seen = 0
+beacons_not_seen = 0
 
 np.random.seed(42)
 
@@ -74,7 +76,9 @@ class NewAction(Node):
         self.frames_count += 1
 
         self.start_scan = self.frames_count if self.start_scan == -1 else self.start_scan
+        # TODO: Check this
         commands.setHeadTilt(-15)
+
         commands.setHeadPan(-math.pi / 5, 1.0)
         if self.frames_count - self.start_scan > 30: #0.5 sec at 100Hz (min 10)
             commands.setHeadPan(math.pi / 5, 1.0)
@@ -84,12 +88,10 @@ class NewAction(Node):
         if self.choose_new_action:
             # Front ~ ourKickOff
             if state.ourKickOff:
-                print("Choosing forward velocity")
                 vx, vy, vt = get_vels(self.past_vels, vel_type="front")
                 state.ourKickOff = False
             # Rear ~ isFreeKick
             elif state.isFreeKick:
-                print("Choosing backward velocity")
                 vx, vy, vt = get_vels(self.past_vels, vel_type="rear")
                 state.isFreeKick = False
             # Middle ~ isPenaltyKick
@@ -99,8 +101,6 @@ class NewAction(Node):
             # Time ran out
             else:
                 vx, vy, vt = get_vels(self.past_vels)
-
-            print(vx, vy, vt)
 
             commands.setWalkVelocity(vx, vy, vt)
             self.past_vels = [vx, vy, vt]
@@ -118,10 +118,17 @@ class NewAction(Node):
         beacons = [beacon1, beacon2, beacon3, beacon4, beacon5, beacon6]
         for i, beacon in enumerate(beacons):
             if beacon.seen:
+                beacons_seen += 1
 #                     print('beacon', i, beacon.visionDistance, 'mm')
                 vels.extend([beacon.beacon_height, beacon.visionBearing])
             else:
+                beacons_not_seen += 1
                 vels.extend([None, None])
+
+        print("============")
+        print("Beacons Seen:")
+        print(beacons_seen, beacons_not_seen)
+        print("============")
 
 #             print(vels)
 #             print("===\n")
@@ -156,6 +163,9 @@ class Ready(Task):
     def run(self):
         commands.setStiffness()
         commands.stand()
+        # TODO: Check this
+        #commands.setHeadTilt(-15)
+        commands.setHeadTilt(0)
         try:
             os.remove("beacon_data.txt")
         except OSError:
