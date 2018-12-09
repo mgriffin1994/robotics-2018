@@ -57,40 +57,47 @@ void ButtonModule::processButtons() {
     center_.reset();
   }
 
-  if (head_middle_.new_result | head_front_.new_result | head_rear_.new_result) {
+  if (head_middle_.new_result) {
     camera_->calibrate_white_balance_ = !camera_->calibrate_white_balance_;
     game_state_->isPenaltyKick = true;
-    std::cout << "Head touched" << std::endl;
+    std::cout << "Middle head touched" << std::endl;
     head_middle_.reset();
+  } else if (head_front_.new_result) {
+    game_state_->ourKickOff = true;
+    std::cout << "Front head touched" << std::endl;
     head_front_.reset();
+
+  } else if (head_rear_.new_result) {
+    game_state_->isFreeKick = true;
+    std::cout << "Rear head touched" << std::endl;
     head_rear_.reset();
   }
 
-  if (right_bumper_.new_result) {
-    if ((state==INITIAL) || (state == FINISHED)) {
-      // Right foot changes team
-      robot_state_->team_changed_ = true;
-      if (robot_state_->team_ == TEAM_RED)
-        robot_state_->team_ = TEAM_BLUE;
-      else if (robot_state_->team_ == TEAM_BLUE)
-        robot_state_->team_ = TEAM_RED;
-      std::cout << "Team Changed to " << robot_state_->team_ << std::endl;
-    }
-    right_bumper_.reset();
-  }
-  
-  if (left_bumper_.new_result) {
-    if ((state==INITIAL) || (state == FINISHED)) {
-      // left foot changes kick off
-      if (game_state_->ourKickOff) {
-        game_state_->ourKickOff = false;
-      } else {
-        game_state_->ourKickOff = true;
-      }
-      std::cout << "KickOff Changed to " << game_state_->ourKickOff << std::endl;
-    }
-    left_bumper_.reset();
-  }
+//  if (right_bumper_.new_result) {
+//    if ((state==INITIAL) || (state == FINISHED)) {
+//      // Right foot changes team
+//      robot_state_->team_changed_ = true;
+//      if (robot_state_->team_ == TEAM_RED)
+//        robot_state_->team_ = TEAM_BLUE;
+//      else if (robot_state_->team_ == TEAM_BLUE)
+//        robot_state_->team_ = TEAM_RED;
+//      std::cout << "Team Changed to " << robot_state_->team_ << std::endl;
+//    }
+//    right_bumper_.reset();
+//  }
+//  
+//  if (left_bumper_.new_result) {
+//    if ((state==INITIAL) || (state == FINISHED)) {
+//      // left foot changes kick off
+//      if (game_state_->ourKickOff) {
+//        game_state_->ourKickOff = false;
+//      } else {
+//        game_state_->ourKickOff = true;
+//      }
+//      std::cout << "KickOff Changed to " << game_state_->ourKickOff << std::endl;
+//    }
+//    left_bumper_.reset();
+//  }
 }
 
 void ButtonModule::processCenterPresses() {
