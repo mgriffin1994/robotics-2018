@@ -12,6 +12,9 @@ from itertools import product
 from scipy import spatial
 import sys
 from numpy.linalg import inv
+from scipy.stats import multivariate_normal
+#import matplotlib.pyplot as plt
+
 
 # Beacon order:
 # BLUE_YELLOW,    
@@ -28,8 +31,8 @@ beacon_locs = np.array(
      [-1400, 950],
      [-1400, -950]]
 )
-EPOCHS = 150
-NP_DATA_FILE = "/home/gguzman/nao/trunk/beacon_data.npz"
+EPOCHS = 1000
+NP_DATA_FILE = "../../../beacon_data.npz"
 TREE = 0
 ACT_TREE = 0
 
@@ -68,11 +71,14 @@ def rotate_matrix(theta):
     R[1][1] = cos(theta)
     return R
 
-def action_model(state, action, action_table):
+#New: Normalized theta, added reverse direction
+def action_model(state, action, action_table, reverse=False):
     timestep = 1/30.
     R = rotate_matrix(state[2])
     velocitay = get_action(action, action_table)
-    return state + R.dot(velocitay) * timestep
+    out = state + R.dot(velocitay*timestep) if not reverse else state - R.dot(velocitay*timestep)
+    out[2] = (out[2] % (2*pi)) - pi
+    return out
 
 def action_noise(Q):
     return np.random.multivariate_normal(np.zeros((3)), Q)
@@ -80,8 +86,9 @@ def action_noise(Q):
 def sensor_noise(R, num_beacons_seen):
     return np.random.multivariate_normal(np.zeros((2*num_beacons_seen)), R)
 
+#New: Added times delta_t to velocity
 def gen_A(theta, action, action_table):
-    velocitay = get_action(action, action_table)
+    velocitay = get_action(action, action_table)*(1. / 30.)
     A = np.eye(3)
     A[0][2] = -sin(theta) * velocitay[0] - cos(theta) * velocitay[1]
     A[1][2] = cos(theta) * velocitay[0] - sin(theta) * velocitay[1]
@@ -113,125 +120,158 @@ def get_R(sigma_1, sigma_2, num_beacons_seen):
         R[i][i] = sigma_1**2 if i % 2 == 0 else sigma_2**2
     return R
 
-def EKFS(obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2):
+#New: alpha and beta are for the prior distribution and updated after time update, sigma updated after measurement update
+#now do measurement update then time update, computing p(O|lambda) now using ot and alpha_t-1 (use alpha_t???)
+def EKFS(iter, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2):
     n = obs_matrix.shape[0]
     alpha = np.zeros((n+1, 3))
     beta =  np.zeros((n+1, 3))
     delta = np.zeros((n, 3))
+
     alpha_cov = np.zeros((n+1, 3, 3))
     beta_cov =  np.zeros((n+1, 3, 3))
     delta_cov = np.zeros((n, 3, 3))
 
-    mu_prime = np.zeros((3))
-    sigma_prime = np.eye(3)
+    mu = np.zeros((3))
+    sigma = np.eye(3)
     Q = get_Q()
 
-    alpha[0] = mu_prime
-    alpha_cov[0] = sigma_prime
+    alpha[0] = mu
+    alpha_cov[0] = sigma
+
+    log_prob = np.log(1.0)
 
     #ForwardPass
-    # TODO: Discard observations?
     for t in range(n):
-        action = act_matrix[t]
-        A = gen_A(mu_prime[2], action, action_table)
 
-        # Time update
-        mu = action_model(mu_prime, action, action_table)
-        sigma = A.dot(sigma_prime).dot(A.T) + Q
-
+        # Measurement update
         obs = obs_matrix[t]
         beacons_seen = get_valid_beacons(obs)
         obs = obs[~np.isnan(obs)]
 
-        # Measurement update
         if beacons_seen:
             R = get_R(sigma_1, sigma_2, len(beacons_seen))
+            
             pred = sensor_model(mu, model_params, beacons_seen)
-            pred[1] = (pred[1] % (2*pi)) - pi
+            pred = pred.reshape(-1, 2)
+            pred[:, 1] = (pred[:, 1] % (2*pi)) - pi
+            
+            obs = obs.reshape(-1, 2)
+            diff = np.abs(obs[:, 1] - pred[:, 1])
+            #TODO see if diff more than 0.6k where k is number of time steps that have elapsed since previous obs made
+
+
+            obs = obs.reshape(-1)
+            pred = pred.reshape(-1)
+
             H = gen_H(mu, model_params, beacons_seen)
 
             K = sigma.dot(H.T.dot(inv(H.dot(sigma).dot(H.T) + R)))
             mu_prime = mu + K.dot((obs - pred))
             sigma_prime = (np.eye(3) - K.dot(H)).dot(sigma)
 
-        mu[2] = (mu[2] % (2*pi)) - pi
-        mu_prime[2] = (mu_prime[2] % (2*pi)) - pi
+            mu_prime[2] = (mu_prime[2] % (2*pi)) - pi
 
-        # Update alpha
-        if not beacons_seen:
-            alpha[t+1] = mu
-            alpha_cov[t+1] = sigma
-        else:
-            alpha[t+1] = mu_prime
-            alpha_cov[t+1] = sigma_prime
-
-    mu_prime = np.zeros((3))
-    sigma_prime = np.eye(3) * 1e6
-
-    beta[n] = mu_prime
-    beta_cov[n] = sigma_prime
-
-    #BackwardPass 
-    for t in range(n-1, -1, -1):
-        action = act_matrix[t]
-        A = gen_A(mu_prime[2], action, action_table)
+            #TODO: use previous mu or current mu???
+            mean = H.dot(mu)
+            cov = H.dot(sigma).dot(H.T) + R
+            log_prob += np.log(multivariate_normal.pdf(obs, mean=mean, cov=cov))
 
         # Time update
-        mu = action_model(mu_prime, action, action_table)
-        sigma = A.dot(sigma_prime).dot(A.T) - Q
+        action = act_matrix[t]
+        A = gen_A(mu_prime[2], action, action_table) if beacons_seen else gen_A(mu[2], action, action_table)
+
+        mu = action_model(mu_prime, action, action_table) if beacons_seen else action_model(mu, action, action_table)
+        sigma = A.dot(sigma_prime).dot(A.T) + Q if beacons_seen else A.dot(sigma).dot(A.T) + Q
+
+
+        mu[2] = (mu[2] % (2*pi)) - pi
+
+        alpha[t+1] = mu
+        alpha_cov[t+1] = sigma
+
+    mu = np.zeros((3))
+    sigma = np.eye(3) * 1e8
+
+    beta[n] = mu
+    beta_cov[n] = sigma
+
+    #BackwardPass
+    for t in range(n-1, -1, -1):
+
+        # Measurement update
+        # TODO: Check signs for backward pass
 
         obs = obs_matrix[t]
         beacons_seen = get_valid_beacons(obs)
         obs = obs[~np.isnan(obs)]
 
-        # Measurement update
-        # TODO: Check signs for backward pass
         if beacons_seen:
             R = get_R(sigma_1, sigma_2, len(beacons_seen))
             pred = sensor_model(mu, model_params, beacons_seen)
-            pred[1] = (pred[1] % (2*pi)) - pi
+            
+            pred = pred.reshape(-1, 2)
+            pred[:, 1] = (pred[:, 1] % (2*pi)) - pi
+            pred = pred.reshape(-1)
+
             H = gen_H(mu, model_params, beacons_seen)
 
             K = sigma.dot(H.T).dot(inv(H.dot(sigma).dot(H.T) + R))
             mu_prime = mu - K.dot((obs - pred))
             sigma_prime = (np.eye(3) - K.dot(H)).dot(sigma)
 
-        mu[2] = (mu[2] % (2*pi)) - pi
-        mu_prime[2] = (mu_prime[2] % (2*pi)) - pi
+            mu_prime[2] = (mu_prime[2] % (2*pi)) - pi
 
-        # Update alpha
-        if not beacons_seen:
-            beta[t] = mu
-            beta_cov[t] = sigma
-        else:
-            beta[t] = mu_prime
-            beta_cov[t] = sigma_prime
 
         # Delta update
-        delta[t] = mu
-        delta_cov[t] = sigma
+        if beacons_seen:
+            delta[t] = mu_prime
+            delta_cov[t] = sigma_prime
+        else:
+            delta[t] = mu
+            delta_cov[t] = sigma
 
-    return alpha, alpha_cov, beta, beta_cov, delta, delta_cov
+        # Time update
+        action = act_matrix[t]
+        A = gen_A(mu_prime[2], action, action_table) if beacons_seen else gen_A(mu[2], action, action_table)
 
+        mu = action_model(mu_prime, action, action_table, reverse=True) if beacons_seen else action_model(mu, action, action_table, reverse=True)
+        sigma = A.dot(sigma_prime).dot(A.T) - Q if beacons_seen else A.dot(sigma).dot(A.T) - Q
+
+        mu[2] = (mu[2] % (2*pi)) - pi
+
+        #Beta update
+        beta[t] = mu
+        beta_cov[t] = sigma
+
+    return alpha, alpha_cov, beta, beta_cov, delta, delta_cov, log_prob
+
+#New: state has first 3 as old state and last 3 as new state, had to update
 def get_L(state):
     L = np.zeros((3, 6))
-    L[0][0] = cos(state[2])
-    L[0][1] = sin(state[2])
-    L[0][2] = -sin(state[2])*(state[0]-state[3]) + cos(state[2])*(state[1]-state[4])
-    L[0][3] = -cos(state[2])
-    L[0][4] = -sin(state[2])
-    L[1][0] = -sin(state[2])
-    L[1][1] = cos(state[2])
-    L[1][2] = -cos(state[2])*(state[0]-state[3]) - sin(state[2])*(state[1]-state[4])
-    L[1][3] = sin(state[2])
-    L[1][4] = -cos(state[2])
-    L[2][2] = 1
-    L[2][5] = -1
+    L[0][0] = -cos(state[2])
+    L[0][1] = -sin(state[2])
+    L[0][2] = -sin(state[2])*(state[3]-state[0]) + cos(state[2])*(state[4]-state[1])
+    L[0][3] = cos(state[2])
+    L[0][4] = sin(state[2])
+
+    L[1][0] = sin(state[2])
+    L[1][1] = -cos(state[2])
+    L[1][2] = -cos(state[2])*(state[3]-state[0]) - sin(state[2])*(state[4]-state[1])
+    L[1][3] = -sin(state[2])
+    L[1][4] = cos(state[2])
+
+    L[2][2] = -1
+    L[2][5] = 1
     return L
 
+#New: state has first 3 as old state and last 3 as new state, had to update
 def D(state):
     R = rotate_matrix(-state[2])
-    return R.dot(state[:3] - state[3:])
+    out = R.dot(state[3:] - state[:3])
+    out[2] = (out[2] % (2*pi)) - pi
+    return out
+
 
 def get_valid_beacons(obs):
     valid_beacons = []
@@ -280,6 +320,7 @@ def sensor_train(obs_matrix, mu_gamma, sigma_gamma, ns):
     sigma_2 = np.sqrt(np.mean(np.power(X[:, 4] - y2, 2)))
     return model_params, sigma_1, sigma_2
 
+#New: divide mu_a_prime by delta_t before storing in table so it's actually velocity and not just displacement
 def action_train(L, mu_zeta, sigma_zeta, m, act_matrix, action_table):
     for i, action in enumerate(action_table):
         act_indices = ACT_TREE.query_ball_point(action[:3], 1e-6)
@@ -307,7 +348,7 @@ def action_train(L, mu_zeta, sigma_zeta, m, act_matrix, action_table):
         mu_a_prime /= len(act_indices)
 
         # Change action table for this slot with mu_a
-        action_table[i][3:] = mu_a_prime
+        action_table[i][3:] = mu_a_prime / (1. / 30.)
 
     return action_table
 
@@ -328,6 +369,7 @@ def get_model_params():
     # NOTE: Taken from paper for faster convergence
     return np.array([50, -0.01, 0, 0])
 
+#New: p(O|lambda) early termination code (first delta should be delta_1 from paper, first alpha should be alpha_0 form paper for zeta stuff)
 def EM(obs_matrix, act_matrix, num_epochs):
     global TREE, ACT_TREE
     n = obs_matrix.shape[0]
@@ -340,12 +382,27 @@ def EM(obs_matrix, act_matrix, num_epochs):
 
     TREE = spatial.KDTree(action_table[:,:3])
     ACT_TREE = spatial.KDTree(act_matrix)
+    log_probs = []
+    max_log_prob = np.NINF
+    iters_not_improve = 0
 
+    #try:
     for i in range(num_epochs):
         print("Iteration ", i, " of EM")
+        
         # E-step
         print("E-step")
-        alpha, alpha_cov, beta, beta_cov, delta, delta_cov = EKFS(obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2)
+        alpha, alpha_cov, beta, beta_cov, delta, delta_cov, log_prob = EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2)
+        
+        log_probs.append(log_prob)
+        print("Log prob: ", log_prob)
+        max_log_prob = log_prob if log_prob >= max_log_prob else max_log_prob
+        if log_prob < max_log_prob:
+            iters_not_improve += 1
+
+        if iters_not_improve >= 50:
+            break 
+
 
         mu_gamma = np.zeros((n, 3))
         sigma_gamma = np.zeros((n, 3, 3))
@@ -357,8 +414,8 @@ def EM(obs_matrix, act_matrix, num_epochs):
 
         for t in range(n):
             # Construct gammas
-            mu_gamma[t] = pinv(pinv(alpha_cov[t]) + pinv(beta_cov[t])).dot(pinv(alpha_cov[t]).dot(alpha[t]) + pinv(beta_cov[t]).dot(beta[t]))
-            sigma_gamma[t] = pinv(pinv(alpha_cov[t]) + pinv(beta_cov[t]))
+            mu_gamma[t] = inv(inv(alpha_cov[t]) + inv(beta_cov[t])).dot(inv(alpha_cov[t]).dot(alpha[t]) + inv(beta_cov[t]).dot(beta[t]))
+            sigma_gamma[t] = inv(inv(alpha_cov[t]) + inv(beta_cov[t]))
 
             # Construct zetas
             mu_zeta[t] = np.concatenate((alpha[t], delta[t]), axis=None)
@@ -370,6 +427,7 @@ def EM(obs_matrix, act_matrix, num_epochs):
             m[t] = D(mu_zeta[t]) - L[t].dot(mu_zeta[t])
 
         # M-step
+
         # Sensor model
         print("M-step")
         model_params, sigma_1, sigma_2 = sensor_train(obs_matrix, mu_gamma, sigma_gamma, ns)
@@ -377,7 +435,9 @@ def EM(obs_matrix, act_matrix, num_epochs):
         # Action model
         action_table = action_train(L, mu_zeta, sigma_zeta, m, act_matrix, action_table)
 
-    return action_table, model_params, sigma_1, sigma_2
+    return action_table, model_params, sigma_1, sigma_2, log_probs
+    #except:
+    #    return action_table, model_params, sigma_1, sigma_2, log_probs
 
 def get_data(data_file):
     data = np.load(data_file)
@@ -394,9 +454,11 @@ def main():
     #print("Observation Matrix: ", obs_matrix.shape)
     #print(obs_matrix)
     #print()
-    action_table, model_params, sigma_1, sigma_2 = EM(obs_matrix, act_matrix, EPOCHS)
+    action_table, model_params, sigma_1, sigma_2, log_probs = EM(obs_matrix, act_matrix, EPOCHS)
     #print("Running EM...")
-    print(action_table, model_params, sigma_1, sigma_2)
+    print( len(log_probs), action_table, model_params, sigma_1, sigma_2)
+    #plt.plot(log_probs)
+    #plt.show()
 
 if __name__ == "__main__":
     main()
