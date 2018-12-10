@@ -4,6 +4,7 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 
+import pprint as pp
 import math
 import memory
 import pose
@@ -17,6 +18,7 @@ import core
 import numpy as np
 import os
 import copy
+from collections import OrderedDict
 
 beacon_data = []
 a = [-1/2, -1/6, 0, 1/6, 1/2]
@@ -28,8 +30,7 @@ field_x = 1500
 field_y = 1000
 forward_x = np.arange(1, 6)
 backward_x = np.array([0, 6, 7])
-beacons_seen = 0
-beacons_not_seen = 0
+beacons_seen = OrderedDict([(index, 0) for index in range(6)])
 
 np.random.seed(42)
 
@@ -68,16 +69,19 @@ class NewAction(Node):
         super(NewAction, self).__init__()
         self.choose_new_action = True
         self.start_scan = -1
+        self.frames = 0
         self.frames_count = 0
         self.past_vels = []
+        self.action_counts = dict()
+        self.seen_all_nans = 0
 
     def run(self):
         state = game_state
         self.frames_count += 1
 
         self.start_scan = self.frames_count if self.start_scan == -1 else self.start_scan
-        # TODO: Check this
-        commands.setHeadTilt(-15)
+        #commands.setHeadTilt(-15)
+        commands.setHeadTilt(0)
 
         commands.setHeadPan(-math.pi / 5, 1.0)
         if self.frames_count - self.start_scan > 30: #0.5 sec at 100Hz (min 10)
@@ -106,6 +110,11 @@ class NewAction(Node):
             self.past_vels = [vx, vy, vt]
             self.choose_new_action = False
 
+            if (vx, vy, vt) in self.action_counts:
+                self.action_counts[(vx, vy, vt)] += 1
+            else:
+                self.action_counts[(vx, vy, vt)] = 1
+
         vels = copy.deepcopy(self.past_vels)
 
         beacon1 = mem_objects.world_objects[core.WO_BEACON_BLUE_YELLOW]
@@ -116,27 +125,51 @@ class NewAction(Node):
         beacon6 = mem_objects.world_objects[core.WO_BEACON_YELLOW_PINK]
 
         beacons = [beacon1, beacon2, beacon3, beacon4, beacon5, beacon6]
+
         for i, beacon in enumerate(beacons):
             if beacon.seen:
-                beacons_seen += 1
+                beacons_seen[i] += 1
 #                     print('beacon', i, beacon.visionDistance, 'mm')
                 vels.extend([beacon.beacon_height, beacon.visionBearing])
             else:
-                beacons_not_seen += 1
                 vels.extend([None, None])
 
+        if max(beacons_seen.values()) == 0:
+            self.seen_all_nans += 1
+            print("NaN Action: ", self.past_vels)
+
         print("============")
-        print("Beacons Seen:")
-        print(beacons_seen, beacons_not_seen)
+        print("Overall NaN Ratio:")
+        print(self.seen_all_nans / float(self.frames_count))
+        print(self.seen_all_nans)
+        print("Actions:")
+        pp.pprint(self.action_counts)
+        print("Total Actions:", sum(self.action_counts))
+        print("Unique Actions:", len(self.action_counts))
+        print("Beacons:")
+        pp.pprint(beacons_seen)
+        print("Frame count:", self.frames_count)
         print("============")
 
-#             print(vels)
-#             print("===\n")
+        with open("obs_data.txt", "a+") as f:
+            if max(beacons_seen.values()) == 0:
+                print("NaN Action: ", self.past_vels, file=f)
+            print("============", file=f)
+            print("Overall NaN Ratio:", file=f)
+            print(self.seen_all_nans / float(self.frames_count), file=f)
+            print(self.seen_all_nans, file=f)
+            print("Actions:", file=f)
+            pp.pprint(self.action_counts, f)
+            print("Total Actions:", sum(self.action_counts), file=f)
+            print("Unique Actions:", len(self.action_counts), file=f)
+            print("Beacons:", file=f)
+            pp.pprint(beacons_seen, f)
+            print("Frame count:", self.frames_count, file=f)
+            print("============", file=f)
 
         with open("beacon_data.txt", "a+") as f:
             np_data = np.array(vels, dtype=float)
             np.savetxt(f, np_data)
-#                 f.write("====\n")
 
         if self.getTime() > 5.0:
             self.choose_new_action = True
@@ -144,6 +177,7 @@ class NewAction(Node):
 
         if (state.isPenaltyKick or state.ourKickOff or state.isFreeKick):
             self.choose_new_action = True
+            self.finish()
 
 class Playing(LoopingStateMachine):
     class Stand(Node):
