@@ -32,7 +32,7 @@ forward_x = np.arange(1, 6)
 backward_x = np.array([0, 6, 7])
 beacons_seen = OrderedDict([(index, 0) for index in range(6)])
 
-np.random.seed(42)
+np.random.seed(42+1)
 
 def get_vels(past_vels, vel_type=None):
     vel_choices = np.arange(len(b) - 1)
@@ -126,15 +126,17 @@ class NewAction(Node):
 
         beacons = [beacon1, beacon2, beacon3, beacon4, beacon5, beacon6]
 
+        seen_beacon = False
         for i, beacon in enumerate(beacons):
             if beacon.seen:
                 beacons_seen[i] += 1
+                seen_beacon = True
 #                     print('beacon', i, beacon.visionDistance, 'mm')
                 vels.extend([beacon.beacon_height, beacon.visionBearing])
             else:
                 vels.extend([None, None])
 
-        if max(beacons_seen.values()) == 0:
+        if not seen_beacon:
             self.seen_all_nans += 1
             print("NaN Action: ", self.past_vels)
 
@@ -144,7 +146,7 @@ class NewAction(Node):
         print(self.seen_all_nans)
         print("Actions:")
         pp.pprint(self.action_counts)
-        print("Total Actions:", sum(self.action_counts))
+        print("Total Actions:", sum(self.action_counts.values()))
         print("Unique Actions:", len(self.action_counts))
         print("Beacons:")
         pp.pprint(beacons_seen)
@@ -160,7 +162,7 @@ class NewAction(Node):
             print(self.seen_all_nans, file=f)
             print("Actions:", file=f)
             pp.pprint(self.action_counts, f)
-            print("Total Actions:", sum(self.action_counts), file=f)
+            print("Total Actions:", sum(self.action_counts.values()), file=f)
             print("Unique Actions:", len(self.action_counts), file=f)
             print("Beacons:", file=f)
             pp.pprint(beacons_seen, f)
