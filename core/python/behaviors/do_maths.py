@@ -32,7 +32,7 @@ beacon_locs = np.array(
      [-1400, 950],
      [-1400, -950]]
 )
-EPOCHS = 20
+EPOCHS = 300
 NP_DATA_FILE = "../../../beacon_data/beacon_data.npz"
 TREE = 0
 ACT_TREE = 0
@@ -44,8 +44,9 @@ def distance(state, beacon_index):
 
 def angle(state, beacon_index):
     beacon = beacon_locs[beacon_index]
-    angle = np.arctan2(state[1] - beacon[1], state[0] - beacon[0]) - state[2]
-    return (angle % (2*pi)) - pi
+    angle = np.arctan2(beacon[1] - state[1], beacon[0] - state[0]) - state[2]
+    #return (angle % (2*pi)) - pi
+    return angle
 
 def f(x, params):
     return params[0] + x*params[1] + x**2*params[2] + x**3*params[3]
@@ -75,19 +76,20 @@ def rotate_matrix(theta):
 #New: Normalized theta, added reverse direction
 def action_model(state, action, action_table, reverse=False):
     timestep = 1/30.
-    velocitay = get_action(action, action_table)
-    R = rotate_matrix(state[2]) if not reverse else rotate_matrix(state[2] - velocitay[2]*timestep)
-    out = state + R.dot(velocitay*timestep) if not reverse else state + R.dot(-velocitay*timestep)
-    out[2] = (out[2] % (2*pi)) - pi
+    velocitay = get_action(action, action_table)*timestep
+    velocitay = velocitay if not reverse else -velocitay
+    R = rotate_matrix(state[2]) if not reverse else rotate_matrix(state[2] + velocitay[2])
+    out = state + R.dot(velocitay)
+    #out[2] = (out[2] % (2*pi)) - pi #???
     return out
 
     #backward pass use theta from previous time step
 
-def action_noise(Q):
-    return np.random.multivariate_normal(np.zeros((3)), Q)
+#def action_noise(Q):
+#    return np.random.multivariate_normal(np.zeros((3)), Q)
 
-def sensor_noise(R, num_beacons_seen):
-    return np.random.multivariate_normal(np.zeros((2*num_beacons_seen)), R)
+#def sensor_noise(R, num_beacons_seen):
+#    return np.random.multivariate_normal(np.zeros((2*num_beacons_seen)), R)
 
 #New: Added times delta_t to velocity
 def gen_A(theta, action, action_table, reverse=False):
@@ -107,8 +109,8 @@ def gen_H(state, model_params, beacons_seen):
         h = np.zeros((2, 3))
         h[0][0] = (state[0] - x)*grad/d
         h[0][1] = (state[1] - y)*grad/d
-        h[1][0] = (y - state[1])/d**2
-        h[1][1] = (state[0] - x)/d**2
+        h[1][0] = (state[1] - y)/d**2
+        h[1][1] = (x - state[0])/d**2
         h[1][2] = -1
         H.append(h)
     H = np.concatenate(H, axis=0)
@@ -124,6 +126,18 @@ def get_R(sigma_1, sigma_2, num_beacons_seen):
     for i in range(R.shape[0]):
         R[i][i] = sigma_1**2 if i % 2 == 0 else sigma_2**2
     return R
+
+def norm_theta(theta):
+    theta =  theta % (2*pi)
+    theta = (theta + 2*pi) % (2*pi)  
+    if type(theta) is np.ndarray:
+        theta[theta > pi] = theta[theta > pi] - 2*pi
+    elif theta > pi:
+        theta -= 2*pi
+
+    return theta
+
+
 
 #pruning (lower coefficient so lot of data removed form 0.6 to 0.2)
 
@@ -147,7 +161,7 @@ def EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2
     alpha_cov[0] = sigma_prime
 
     log_prob = np.log(1.0)
-    k = np.zeros((6))
+    k = np.ones((6))
     old_beacons_seen = np.zeros((6))
 
     #print("FORWARDS")
@@ -164,7 +178,8 @@ def EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2
         mu = action_model(mu_prime, action, action_table)
         sigma = A.dot(sigma_prime).dot(A.T) + Q
 
-        mu[2] = (mu[2] % (2*pi)) - pi
+        #mu[2] = (mu[2] % (2*pi)) - pi
+        mu[2] = norm_theta(mu[2])
 
         # Measurement update
         obs = obs_matrix[t]
@@ -172,22 +187,28 @@ def EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2
         old_beacons_seen = beacons_seen.copy()
         obs = obs[~np.isnan(obs)]
 
+        #Temporarily
+        mu_prime = mu
+        sigma_prime = sigma
+
 
         if len(beacons_seen):
             # TODO: Check reshaping here
             pred = sensor_model(mu, model_params, beacons_seen)
             pred = pred.reshape(-1, 2)
-            pred[:, 1] = (pred[:, 1] % (2*pi)) - pi
+            #pred[:, 1] = (pred[:, 1] % (2*pi)) - pi
             
             obs = obs.reshape(-1, 2)
-            good_obs = np.abs(obs[:, 1] - pred[:, 1]) <= 0.2*k[beacons_seen]
+            diff = obs[:, 1] - pred[:, 1]
+            diff = norm_theta(diff)
+            good_obs = np.abs(diff) <= 0.2*k[beacons_seen]
 
             if i == 0 and np.any(~good_obs):
                 obs_matrix[t].reshape(-1, 2)[beacons_seen[~good_obs]] = np.nan
                 obs = obs[good_obs]
                 pred = pred[good_obs]
                 beacons_seen = beacons_seen[good_obs]
-                print("Discarding observation!")
+                print("Discarding observation {}!".format(t))
 
             # See if good_obs more than 0.6k where k is number of time steps that have elapsed since previous obs made
             if len(beacons_seen):
@@ -198,21 +219,21 @@ def EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2
 
                 H = gen_H(mu, model_params, beacons_seen)
 
-                K = sigma.dot(H.T.dot(inv(H.dot(sigma).dot(H.T) + R)))
+                K = sigma.dot(H.T).dot(inv(H.dot(sigma).dot(H.T) + R))
 
                 y = obs - pred
                 y = y.reshape(-1, 2)
-                # TODO: Check
-                y[:, 1] = (y[:, 1] % (2*pi))
+                y[:, 1] = norm_theta(y[:, 1])
                 y = y.reshape(-1)
 
                 mu_prime = mu + K.dot(y)
                 sigma_prime = (np.eye(3) - K.dot(H)).dot(sigma)
 
-                mu_prime[2] = (mu_prime[2] % (2*pi)) - pi
+                mu_prime[2] = norm_theta(mu_prime[2])
+                #mu_prime[2] = (mu_prime[2] % (2*pi)) - pi
 
             if i == 0:
-                k[old_beacons_seen] = 0
+                k[old_beacons_seen] = 1
 
             obs = obs.reshape(-1)
             pred = pred.reshape(-1)
@@ -220,18 +241,18 @@ def EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2
         if i == 0:
             k[beacons_not_seen] += 1
 
-        # Alpha update
-        if len(beacons_seen):
-            alpha[t+1] = mu_prime
-            alpha_cov[t+1] = sigma_prime
 
-            #TODO: use previous mu or current mu???
-            mean = H.dot(mu)
-            cov = H.dot(sigma).dot(H.T) + R
+
+        # Alpha update
+        alpha[t+1] = mu_prime
+        alpha_cov[t+1] = sigma_prime
+
+        #TODO check this??? (with mu more likely than with mu_prime)
+        if len(beacons_seen):#TODO: use previous mu or current mu???
+            mean = H.dot(mu_prime)
+            cov = H.dot(sigma_prime).dot(H.T) + R
             log_prob += np.log(multivariate_normal.pdf(obs, mean=mean, cov=cov))
-        else:
-            alpha[t+1] = mu
-            alpha_cov[t+1] = sigma
+
 
         
 
@@ -254,21 +275,22 @@ def EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2
     #BackwardPass
     #backwards measurement then time (with backwards dynamics), delta after measurement, beta after time (init with prior)
     for t in range(n-1, -1, -1):
-
         # Measurement update
         # TODO: Check signs for backward pass
-
         obs = obs_matrix[t]
         beacons_seen, _  = get_valid_beacons(obs)
         obs = obs[~np.isnan(obs)]
+
+        mu_prime = mu
+        sigma_prime = sigma
 
         if len(beacons_seen):
             R = get_R(sigma_1, sigma_2, len(beacons_seen))
             pred = sensor_model(mu, model_params, beacons_seen)
             
-            pred = pred.reshape(-1, 2)
-            pred[:, 1] = (pred[:, 1] % (2*pi)) - pi
-            pred = pred.reshape(-1)
+            #pred = pred.reshape(-1, 2)
+            #pred[:, 1] = (pred[:, 1] % (2*pi)) - pi
+            #pred = pred.reshape(-1)
 
             H = gen_H(mu, model_params, beacons_seen)
 
@@ -276,31 +298,26 @@ def EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2
 
             y = obs - pred
             y = y.reshape(-1, 2)
-            # TODO: Check
-            y[:, 1] = (y[:, 1] % (2*pi))
+            y[:, 1] = norm_theta(y[:, 1])
             y = y.reshape(-1)
 
             mu_prime = mu + K.dot(y)
             sigma_prime = (np.eye(3) - K.dot(H)).dot(sigma)
 
-            mu_prime[2] = (mu_prime[2] % (2*pi)) - pi
+            mu_prime[2] = norm_theta(mu_prime[2])
 
         # Delta update
-        if len(beacons_seen):
-            delta[t] = mu_prime
-            delta_cov[t] = sigma_prime
-        else:
-            delta[t] = mu
-            delta_cov[t] = sigma
+        delta[t] = mu_prime
+        delta_cov[t] = sigma_prime
 
         # Time update
         action = act_matrix[t]
-        A = gen_A(mu_prime[2], action, action_table) if len(beacons_seen) else gen_A(mu[2], action, action_table)
+        A = gen_A(mu_prime[2], action, action_table)
 
-        mu = action_model(mu_prime, action, action_table, reverse=True) if len(beacons_seen) else action_model(mu, action, action_table, reverse=True)
-        sigma = A.dot(sigma_prime).dot(A.T) + Q if len(beacons_seen) else A.dot(sigma).dot(A.T) + Q
+        mu = action_model(mu_prime, action, action_table, reverse=True)
+        sigma = A.dot(sigma_prime).dot(A.T) + Q
 
-        mu[2] = (mu[2] % (2*pi)) - pi
+        mu[2] = norm_theta(mu[2])
 
         #Beta update
         beta[t] = mu
@@ -441,8 +458,8 @@ def get_action_table():
 
 def get_model_params():
     # NOTE: Taken from paper for faster convergence
-    #return np.array([50, -0.01, 0, 0])
-    return np.array([0, 0, 0, 0]) #TODO: default 0's for now
+    return np.array([80, -0.02, 0, 0])
+    #return np.array([0, 0, 0, 0]) #TODO: default 0's for now
 
 #New: p(O|lambda) early termination code (first delta should be delta_1 from paper, first alpha should be alpha_0 form paper for zeta stuff)
 def EM(obs_matrix, act_matrix, num_epochs):
@@ -450,7 +467,7 @@ def EM(obs_matrix, act_matrix, num_epochs):
     n = obs_matrix.shape[0]
     # NOTE: Taken from paper for faster convergence
     sigma_1, sigma_2 = 10, 0.2
-    ns = 1
+    ns = 5
 
     action_table = get_action_table()
     model_params = get_model_params()
