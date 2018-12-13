@@ -26,4 +26,5 @@ the ```do_maths.py``` script.
 
 **Miscellaneous Notes**:
  - For collecting real data, change the ```do_maths.py``` and ```format_data.sh``` to point to ```beacon_data/``` the top-level folder and the files in that folder.
-
+ - If you want to collect data in simulation, run the GoalieSim behavior in the world window tool.
+ - If you want to teleport the player, you can press the `ctrl` key and then right click on the world
