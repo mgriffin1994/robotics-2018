@@ -5,12 +5,14 @@
 typedef IsolatedBehaviorSimulation IBSim;
 typedef ObjectConfiguration OP;
 
-#define _X (-HALF_FIELD_X + 250)
+#define _X 0
 #define BALL_X (_X + 1500)
 #define _Y 0
 #define _ORIENT 0
-#define getObject(obj,idx) \
-  auto& obj = gtcache_.world_object->objects_[idx];
+//#define getObject(obj,idx) \
+  //auto& obj = gtcache_.world_object->objects_[idx];
+#define getObject(obj, idx, cache) \
+  auto& obj = cache.world_object->objects_[idx];
 
 GoalieSimulation::GoalieSimulation() : IBSim(true, KEEPER) {
   auto& config = config_.objects.gtconfig;
@@ -32,24 +34,31 @@ GoalieSimulation::GoalieSimulation() : IBSim(true, KEEPER) {
   sim_.initLocalization();
 }
 
+void GoalieSimulation::teleportPlayer(Point2D position, float orientation, int) {
+  getObject(self, player_, gtcache_);
+  self.loc = position;
+  self.orientation = orientation;
+}
+
 void GoalieSimulation::simulationStep() {
   physics_.step();
   int frames = ++gtcache_.frame_info->frame_id - sframe_;
-  if(frames > 150) {
-    if(align_)
-      kickBall();
-    else
-      resetBall();
-    sframe_ = gtcache_.frame_info->frame_id;
-    align_ = !align_;
-  }
+  //if(frames > 150) {
+  //  if(align_)
+  //    kickBall();
+  //  else
+  //    resetBall();
+  //  sframe_ = gtcache_.frame_info->frame_id;
+  //  align_ = !align_;
+  //}
   sim_.processFrame(gtcache_.world_object, gtcache_.game_state);
+  //sim_.processFrame(bcache_.world_object, bcache_.game_state);
 }
 
 void GoalieSimulation::kickBall() {
   rand_ = Random(time(NULL));
-  getObject(ball, WO_BALL);
-  getObject(goal, WO_OWN_GOAL);
+  getObject(ball, WO_BALL, gtcache_);
+  getObject(goal, WO_OWN_GOAL, gtcache_);
   float directionToGoal = ball.loc.getAngleTo(goal.loc);
   float direction = normalizeAngle(rand_.sampleU(-30, 30) * DEG_T_RAD + directionToGoal);
   float magnitude = rand_.sampleU(1000,3000);
@@ -57,6 +66,6 @@ void GoalieSimulation::kickBall() {
 }
 
 void GoalieSimulation::resetBall() {
-  getObject(ball, WO_BALL);
+  getObject(ball, WO_BALL, gtcache_);
   ball.loc = Point2D(BALL_X, rand_.sampleU(-1000,1000));
 }

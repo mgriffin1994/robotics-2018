@@ -32,14 +32,14 @@ forward_x = np.arange(1, 6)
 backward_x = np.array([0, 6, 7])
 beacons_seen = OrderedDict([(index, 0) for index in range(6)])
 
-np.random.seed(42+1)
+np.random.seed(42)
 
 def get_vels(past_vels, vel_type=None):
-    vel_choices = np.arange(len(b) - 1)
-    if vel_type == "front":
-        vel_choices = forward_x
-    elif vel_type == "rear":
-        vel_choices = backward_x
+    vel_choices = np.arange(len(b))
+    # if vel_type == "front":
+    #     vel_choices = forward_x
+    # elif vel_type == "rear":
+    #     vel_choices = backward_x
 
     if past_vels:
         vx, vy, vt = past_vels
@@ -48,7 +48,7 @@ def get_vels(past_vels, vel_type=None):
         check = []
 
     while check == past_vels:
-        a_ind = np.random.randint(0, len(a) - 1)
+        a_ind = np.random.randint(0, len(a))
         np.random.shuffle(vel_choices)
         b_ind = vel_choices[0]
 
@@ -60,7 +60,7 @@ def get_vels(past_vels, vel_type=None):
         vy = math.sin(rand_b) * math.sqrt(1 - vt**2)
 
         check = [vx, vy, vt]
-        vel_choices = np.arange(len(b) - 1)
+        vel_choices = np.arange(len(b))
 
     return vx, vy, vt
 
@@ -74,37 +74,41 @@ class NewAction(Node):
         self.past_vels = []
         self.action_counts = dict()
         self.seen_all_nans = 0
+        self.obs_file = open("obs_data_sim.txt", "a+")
+        self.beacon_file = open("beacon_data_sim.txt", "a+")
 
     def run(self):
         state = game_state
         self.frames_count += 1
 
-        self.start_scan = self.frames_count if self.start_scan == -1 else self.start_scan
+        #self.start_scan = self.frames_count if self.start_scan == -1 else self.start_scan
         #commands.setHeadTilt(-15)
         commands.setHeadTilt(0)
 
-        commands.setHeadPan(-math.pi / 5, 1.0)
-        if self.frames_count - self.start_scan > 30: #0.5 sec at 100Hz (min 10)
-            commands.setHeadPan(math.pi / 5, 1.0)
-            if self.frames_count - self.start_scan > 60: #0.5 sec at 100Hz
-                self.start_scan = -1
+        #commands.setHeadPan(-math.pi / 5, 1.0)
+        #if self.frames_count - self.start_scan > 30: #0.5 sec at 100Hz (min 10)
+        #    commands.setHeadPan(math.pi / 5, 1.0)
+        #    if self.frames_count - self.start_scan > 60: #0.5 sec at 100Hz
+        #        self.start_scan = -1
 
         if self.choose_new_action:
             # Front ~ ourKickOff
-            if state.ourKickOff:
-                vx, vy, vt = get_vels(self.past_vels, vel_type="front")
-                state.ourKickOff = False
-            # Rear ~ isFreeKick
-            elif state.isFreeKick:
-                vx, vy, vt = get_vels(self.past_vels, vel_type="rear")
-                state.isFreeKick = False
-            # Middle ~ isPenaltyKick
-            elif state.isPenaltyKick:
-                vx, vy, vt = get_vels(self.past_vels)
-                state.isPenaltyKick = False
-            # Time ran out
-            else:
-                vx, vy, vt = get_vels(self.past_vels)
+            # if state.ourKickOff:
+            #     vx, vy, vt = get_vels(self.past_vels, vel_type="front")
+            #     state.ourKickOff = False
+            # # Rear ~ isFreeKick
+            # elif state.isFreeKick:
+            #     vx, vy, vt = get_vels(self.past_vels, vel_type="rear")
+            #     state.isFreeKick = False
+            # # Middle ~ isPenaltyKick
+            # elif state.isPenaltyKick:
+            #     vx, vy, vt = get_vels(self.past_vels)
+            #     state.isPenaltyKick = False
+            # # Time ran out
+            # else:
+            #     vx, vy, vt = get_vels(self.past_vels)
+
+            vx, vy, vt = get_vels(self.past_vels)
 
             commands.setWalkVelocity(vx, vy, vt)
             self.past_vels = [vx, vy, vt]
@@ -153,33 +157,33 @@ class NewAction(Node):
         print("Frame count:", self.frames_count)
         print("============")
 
-        with open("obs_data.txt", "a+") as f:
-            if max(beacons_seen.values()) == 0:
-                print("NaN Action: ", self.past_vels, file=f)
-            print("============", file=f)
-            print("Overall NaN Ratio:", file=f)
-            print(self.seen_all_nans / float(self.frames_count), file=f)
-            print(self.seen_all_nans, file=f)
-            print("Actions:", file=f)
-            pp.pprint(self.action_counts, f)
-            print("Total Actions:", sum(self.action_counts.values()), file=f)
-            print("Unique Actions:", len(self.action_counts), file=f)
-            print("Beacons:", file=f)
-            pp.pprint(beacons_seen, f)
-            print("Frame count:", self.frames_count, file=f)
-            print("============", file=f)
+        # #with self.obs_file as f:
+        if max(beacons_seen.values()) == 0:
+            print("NaN Action: ", self.past_vels, file=self.obs_file)
+        print("============", file=self.obs_file)
+        print("Overall NaN Ratio:", file=self.obs_file)
+        print(self.seen_all_nans / float(self.frames_count), file=self.obs_file)
+        print(self.seen_all_nans, file=self.obs_file)
+        print("Actions:", file=self.obs_file)
+        pp.pprint(self.action_counts, self.obs_file)
+        print("Total Actions:", sum(self.action_counts.values()), file=self.obs_file)
+        print("Unique Actions:", len(self.action_counts), file=self.obs_file)
+        print("Beacons:", file=self.obs_file)
+        pp.pprint(beacons_seen, self.obs_file)
+        print("Frame count:", self.frames_count, file=self.obs_file)
+        print("============", file=self.obs_file)
 
-        with open("beacon_data.txt", "a+") as f:
-            np_data = np.array(vels, dtype=float)
-            np.savetxt(f, np_data)
+        #with self.beacon_file as f:
+        np_data = np.array(vels, dtype=float)
+        np.savetxt(self.beacon_file, np_data)
 
-        if self.getTime() > 5.0:
+        if self.getFrames() > 150:
             self.choose_new_action = True
             self.finish()
 
-        if (state.isPenaltyKick or state.ourKickOff or state.isFreeKick):
-            self.choose_new_action = True
-            self.finish()
+        #if (state.isPenaltyKick or state.ourKickOff or state.isFreeKick):
+        #    self.choose_new_action = True
+        #    self.finish()
 
 class Playing(LoopingStateMachine):
     class Stand(Node):
@@ -202,10 +206,10 @@ class Ready(Task):
         # TODO: Check this
         #commands.setHeadTilt(-15)
         commands.setHeadTilt(0)
-        try:
-            os.remove("beacon_data.txt")
-        except OSError:
-            pass
+        #try:
+        #    os.remove("beacon_data_sim.txt")
+        #except OSError:
+        #    pass
         if self.getTime() > 3.0:
             self.finish()
 

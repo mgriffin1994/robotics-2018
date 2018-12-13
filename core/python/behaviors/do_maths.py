@@ -14,7 +14,6 @@ from scipy import spatial
 import sys
 from numpy.linalg import inv
 from scipy.stats import multivariate_normal
-#import matplotlib.pyplot as plt
 
 
 # Beacon order:
@@ -32,10 +31,13 @@ beacon_locs = np.array(
      [-1400, 950],
      [-1400, -950]]
 )
-EPOCHS = 300
+EPOCHS = 50
 NP_DATA_FILE = "../../../beacon_data/beacon_data.npz"
 TREE = 0
 ACT_TREE = 0
+OBS_DISCARD = 0.4
+
+np.random.seed(42)
 
 sys.setrecursionlimit(20000)
 
@@ -55,7 +57,6 @@ def f_grad(x, params):
     return params[1] + 2*x*params[2] + 3*x**2*params[3]
 
 def get_action(action, action_table):
-    # Interpolate?
     return action_table[TREE.query(tuple(action))[1],3:]
 
 def sensor_model(state, model_params, beacons_seen):
@@ -137,13 +138,11 @@ def norm_theta(theta):
 
     return theta
 
-
-
 #pruning (lower coefficient so lot of data removed form 0.6 to 0.2)
 
 #New: alpha and beta are for the prior distribution and updated after time update, sigma updated after measurement update
 #now do measurement update then time update, computing p(O|lambda) now using ot and alpha_t-1 (use alpha_t???)
-def EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2):
+def EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2, prev_gamma, prev_gamma_cov):
     n = obs_matrix.shape[0]
     alpha = np.zeros((n+1, 3))
     beta =  np.zeros((n+1, 3))
@@ -164,13 +163,11 @@ def EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2
     k = np.ones((6))
     old_beacons_seen = np.zeros((6))
 
-    #print("FORWARDS")
-#Forward time then measurement (obs after action done) (alpha after meas)
+    #Forward time then measurement (obs after action done) (alpha after meas)
     #ForwardPass
     #mu after time update, linear about that for log liklihood (time update then log lilihood with that time update mu)
     #alpha after measurement init with prior
     for t in range(n):
-
         # Time update
         action = act_matrix[t]
         A = gen_A(mu_prime[2], action, action_table)
@@ -183,7 +180,7 @@ def EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2
 
         # Measurement update
         obs = obs_matrix[t]
-        beacons_seen, beacons_not_seen  = get_valid_beacons(obs)
+        beacons_seen, beacons_not_seen = get_valid_beacons(obs)
         old_beacons_seen = beacons_seen.copy()
         obs = obs[~np.isnan(obs)]
 
@@ -191,9 +188,7 @@ def EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2
         mu_prime = mu
         sigma_prime = sigma
 
-
         if len(beacons_seen):
-            # TODO: Check reshaping here
             pred = sensor_model(mu, model_params, beacons_seen)
             pred = pred.reshape(-1, 2)
             #pred[:, 1] = (pred[:, 1] % (2*pi)) - pi
@@ -201,7 +196,7 @@ def EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2
             obs = obs.reshape(-1, 2)
             diff = obs[:, 1] - pred[:, 1]
             diff = norm_theta(diff)
-            good_obs = np.abs(diff) <= 0.2*k[beacons_seen]
+            good_obs = np.abs(diff) <= OBS_DISCARD*k[beacons_seen]
 
             if i == 0 and np.any(~good_obs):
                 obs_matrix[t].reshape(-1, 2)[beacons_seen[~good_obs]] = np.nan
@@ -241,20 +236,18 @@ def EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2
         if i == 0:
             k[beacons_not_seen] += 1
 
-
-
         # Alpha update
         alpha[t+1] = mu_prime
         alpha_cov[t+1] = sigma_prime
 
         #TODO check this??? (with mu more likely than with mu_prime)
         if len(beacons_seen):#TODO: use previous mu or current mu???
-            mean = H.dot(mu_prime)
-            cov = H.dot(sigma_prime).dot(H.T) + R
-            log_prob += np.log(multivariate_normal.pdf(obs, mean=mean, cov=cov))
-
-
-        
+            try:
+                mean = H.dot(mu)
+                cov = H.dot(sigma).dot(H.T) + R
+                log_prob += np.log(multivariate_normal.pdf(obs, mean=mean, cov=cov))
+            except:
+                pass
 
         #if len(beacons_seen):
         #    print("Mu_prime: ", mu_prime)
@@ -264,19 +257,16 @@ def EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2
         #    print("alpha_cov: ", alpha_cov[t+1])
         #    print()
         
-    mu = np.zeros((3))
-    # TODO: Use gamma for backwards pass
-    sigma = np.eye(3) * 1e8
+    mu = prev_gamma
+    sigma = prev_gamma_cov
 
-    beta[n] = mu
-    beta_cov[n] = sigma
+    beta[n] = prev_gamma
+    beta_cov[n] = prev_gamma_cov
 
-    #print("BACKWARDS")
     #BackwardPass
     #backwards measurement then time (with backwards dynamics), delta after measurement, beta after time (init with prior)
     for t in range(n-1, -1, -1):
         # Measurement update
-        # TODO: Check signs for backward pass
         obs = obs_matrix[t]
         beacons_seen, _  = get_valid_beacons(obs)
         obs = obs[~np.isnan(obs)]
@@ -357,7 +347,7 @@ def get_L(state):
 def D(state):
     R = rotate_matrix(-state[2])
     out = R.dot(state[3:] - state[:3])
-    out[2] = (out[2] % (2*pi)) - pi
+    out[2] = norm_theta(out[2])
     return out
 
 def get_valid_beacons(obs):
@@ -459,7 +449,7 @@ def get_action_table():
 def get_model_params():
     # NOTE: Taken from paper for faster convergence
     return np.array([80, -0.02, 0, 0])
-    #return np.array([0, 0, 0, 0]) #TODO: default 0's for now
+    #return np.array([0, 0, 0, 0])
 
 #New: p(O|lambda) early termination code (first delta should be delta_1 from paper, first alpha should be alpha_0 form paper for zeta stuff)
 def EM(obs_matrix, act_matrix, num_epochs):
@@ -478,13 +468,15 @@ def EM(obs_matrix, act_matrix, num_epochs):
     max_log_prob = np.NINF
     iters_not_improve = 0
 
-    #try:
+    prev_gamma = np.zeros((3))
+    prev_gamma_cov = np.eye(3) * 1e8
+
     for i in range(num_epochs):
         print("Iteration ", i, " of EM")
         
         # E-step
         print("E-step")
-        alpha, alpha_cov, beta, beta_cov, delta, delta_cov, log_prob = EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2)
+        alpha, alpha_cov, beta, beta_cov, delta, delta_cov, log_prob = EKFS(i, obs_matrix, act_matrix, model_params, action_table, sigma_1, sigma_2, prev_gamma, prev_gamma_cov)
         
         log_probs.append(log_prob)
         print("Log prob: ", log_prob)
@@ -495,8 +487,8 @@ def EM(obs_matrix, act_matrix, num_epochs):
         if iters_not_improve >= 50:
             break 
 
-        mu_gamma = np.zeros((n, 3))
-        sigma_gamma = np.zeros((n, 3, 3))
+        mu_gamma = np.zeros((n+1, 3))
+        sigma_gamma = np.zeros((n+1, 3, 3))
 
         mu_zeta = np.zeros((n, 6))
         sigma_zeta = np.zeros((n, 6, 6))
@@ -518,6 +510,12 @@ def EM(obs_matrix, act_matrix, num_epochs):
             L[t] = get_L(mu_zeta[t])
             m[t] = D(mu_zeta[t]) - L[t].dot(mu_zeta[t])
 
+        mu_gamma[n] = alpha[n] + alpha_cov[n].dot(inv(alpha_cov[n] + beta_cov[n])).dot(beta[n] - alpha[n])
+        sigma_gamma[n] = inv(inv(alpha_cov[n]) + inv(beta_cov[n]))
+
+        prev_gamma = mu_gamma[n]
+        prev_gamma_cov = sigma_gamma[n]
+
         # M-step
 
         # Sensor model
@@ -528,8 +526,6 @@ def EM(obs_matrix, act_matrix, num_epochs):
         action_table = action_train(L, mu_zeta, sigma_zeta, m, act_matrix, action_table)
 
     return action_table, model_params, sigma_1, sigma_2, log_probs
-    #except:
-    #    return action_table, model_params, sigma_1, sigma_2, log_probs
 
 def get_data(data_file):
     data = np.load(data_file)
@@ -552,8 +548,6 @@ def main():
     np.savez("action_table.npz", desired=action_table[:,:3], learned=action_table[:,3:])
     np.savez("model_params.npz", params=model_params)
     np.savez("sigmas.npz", sigma_1=sigma_1, sigma_2=sigma_2)
-    #plt.plot(log_probs)
-    #plt.show()
 
 if __name__ == "__main__":
     main()

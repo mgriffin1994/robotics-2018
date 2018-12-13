@@ -13,4 +13,5 @@ class GoalieSimulation : public IsolatedBehaviorSimulation {
   private:
     bool align_;
     int sframe_;
+    void teleportPlayer(Point2D position, float orientation, int = 0);
 };

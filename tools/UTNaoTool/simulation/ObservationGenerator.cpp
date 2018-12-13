@@ -111,6 +111,18 @@ void ObservationGenerator::generateOpponentObservations() {}
 
 void ObservationGenerator::generateCenterCircleObservations() {}
 
+//Approximates camera height using camera params
+float getCameraHeightByDistance(float distance) {
+
+  float worldHeight = 100 / 2.0f;
+  float fov = (47.64 / (180.0 * M_PI));
+  float iparams_height = 240;
+
+  auto theta = 2.0f * atanf(worldHeight / distance);
+  auto cameraHeight = theta / fov * iparams_height;
+  return cameraHeight;
+}
+
 void ObservationGenerator::generateBeaconObservations() {
   getSelf(gtSelf,obsSelf,player_);
   std::vector<WorldObjectType> types = {
@@ -121,6 +133,10 @@ void ObservationGenerator::generateBeaconObservations() {
     WO_BEACON_PINK_YELLOW,
     WO_BEACON_YELLOW_PINK
   };
+
+  
+
+
   for(auto t : types) {
     getObject(gtBeacon, obsBeacon, t);
     float bearing = gtSelf.loc.getBearingTo(gtBeacon.loc,gtSelf.orientation);
@@ -140,6 +156,8 @@ void ObservationGenerator::generateBeaconObservations() {
         obsBeacon.visionDistance = distance + randNoise * VISION_ERROR_FACTOR * 0.2*distance;// up to 15% distance error
         obsBeacon.visionBearing = bearing + randNoise * VISION_ERROR_FACTOR * 10.0*DEG_T_RAD;// up to 5 deg bearing error
         obsBeacon.visionConfidence = 1.0;
+        obsBeacon.beacon_height = getCameraHeightByDistance(obsBeacon.visionDistance);
+        gtBeacon.beacon_height = getCameraHeightByDistance(obsBeacon.visionDistance);
       }
     }
   }
@@ -318,6 +336,7 @@ void ObservationGenerator::generateGroundTruthObservations(){
       wo->imageCenterX = iparams_.width/2.0 + (diff / (FOVx/2.0) * iparams_.width/2.0);
       wo->imageCenterY = iparams_.height/2.0;
       gto->visionDistance = wo->visionDistance = wo->distance;
+      gto->beacon_height = wo->beacon_height;
       gto->visionBearing = wo->visionBearing = wo->bearing;
     } else gto->seen = wo->seen = false;
   }
@@ -340,6 +359,7 @@ void ObservationGenerator::initializeBelief() {
       to.imageCenterX = from.imageCenterX;
       to.imageCenterY = from.imageCenterY;
       to.visionDistance = from.visionDistance;
+      to.beacon_height = from.beacon_height;      
       to.visionBearing = from.visionBearing;
       to.visionPt1 = from.visionPt1;
       to.visionPt2 = from.visionPt2;
@@ -380,6 +400,7 @@ void ObservationGenerator::fillObservationObjects() {
       to.imageCenterX = from.imageCenterX;
       to.imageCenterY = from.imageCenterY;
       to.visionDistance = from.visionDistance;
+      to.beacon_height = from.beacon_height;
       to.visionBearing = from.visionBearing;
       to.visionPt1 = from.visionPt1;
       to.visionPt2 = from.visionPt2;

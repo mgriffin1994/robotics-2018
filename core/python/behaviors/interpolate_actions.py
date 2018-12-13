@@ -76,7 +76,7 @@ def interpolate(actions, action_table):
         plt.imshow(grid_z1[:,:,i,:], extent=extent, origin='lower')
         plt.title('Linear (Theta: {0:.2f})'.format(grid_t[0,0,i]))
         plt.gcf().set_size_inches(6, 6)
-        plt.show()
+        plt.savefig("real_theta_{}.png".format(i))
         plt.close()
 
     #fig = plt.figure()
